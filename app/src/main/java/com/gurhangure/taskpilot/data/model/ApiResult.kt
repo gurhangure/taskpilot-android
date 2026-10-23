@@ -17,6 +17,9 @@ sealed interface ApiError {
     /** The supplied URL failed validation; the current client remains unchanged. */
     data object InvalidUrl : ApiError
 
+    /** The saved endpoint could not be read or updated; existing settings are retained. */
+    data object Storage : ApiError
+
     /** The server could not be reached or the transport failed. */
     data object Connection : ApiError
 

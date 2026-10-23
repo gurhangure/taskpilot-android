@@ -28,6 +28,17 @@ class ApiConfigurationTest {
         }
     }
 
+    /** Supports the explicit emulator demo exception without allowing other HTTP hosts. */
+    @Test
+    fun emulatorPolicyIsExplicitAndNormalizesUserInput() {
+        assertEquals("http://10.0.2.2:5087/prefix/", ApiConfiguration(
+            "  http://10.0.2.2:5087/prefix  ", allowEmulatorHttp = true,
+        ).baseUrl)
+        listOf("http://192.168.1.20/", "http://example.test/", "http://10.0.2.2.example.test/").forEach { url ->
+            assertThrows(IllegalArgumentException::class.java) { ApiConfiguration(url, allowEmulatorHttp = true) }
+        }
+    }
+
     /** Permits only the exact opted-in emulator or private LAN host, with configurable ports. */
     @Test
     fun localHttpRequiresAnExactPrivateHost() {

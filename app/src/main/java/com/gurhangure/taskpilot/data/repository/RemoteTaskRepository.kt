@@ -27,6 +27,19 @@ class RemoteTaskRepository(
     private val api: TaskApi,
     private val json: Json = TaskApiFactory.json,
 ) : TaskRepository {
+    /** Validates health and task JSON contracts so a generic HTTP success cannot pass the probe. */
+    override suspend fun testConnection(): ApiResult<Unit> {
+        val health = execute(200, { api.health() }) { body ->
+            requireNotNull(body)
+            require(body.status == "ok")
+        }
+        if (health is ApiResult.Failure) return health
+        return when (val tasks = list()) {
+            is ApiResult.Success -> ApiResult.Success(Unit)
+            is ApiResult.Failure -> tasks
+        }
+    }
+
     /** Converts the entire response atomically so corrupt tasks are never silently dropped. */
     override suspend fun list(): ApiResult<List<Task>> = execute(200, { api.list() }) { body ->
         requireNotNull(body).map { it.toTask() }

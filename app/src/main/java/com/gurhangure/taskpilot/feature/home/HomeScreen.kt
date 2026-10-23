@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import com.gurhangure.taskpilot.R
 import com.gurhangure.taskpilot.data.model.ApiError
 import com.gurhangure.taskpilot.data.model.Task
+import com.gurhangure.taskpilot.ui.components.apiErrorMessage
 import com.gurhangure.taskpilot.ui.theme.TaskPilotColors
 import com.gurhangure.taskpilot.ui.theme.TaskPilotSpacing
 import com.gurhangure.taskpilot.ui.theme.TaskPilotTheme
@@ -47,6 +48,7 @@ fun HomeScreen(
     onRetry: () -> Unit,
     onFilterSelected: (TaskFilter) -> Unit,
     modifier: Modifier = Modifier,
+    onOpenSettings: () -> Unit = {},
 ) {
     Scaffold(modifier = modifier.fillMaxSize()) { insets ->
         Box(Modifier.fillMaxSize().padding(insets), contentAlignment = Alignment.TopCenter) {
@@ -55,9 +57,11 @@ fun HomeScreen(
                 contentPadding = PaddingValues(TaskPilotSpacing.ExtraLarge),
                 verticalArrangement = Arrangement.spacedBy(TaskPilotSpacing.Large),
             ) {
-                item(key = "header") { TaskListHeader(state.isLoading, onRefresh) }
-                item(key = "statistics") { TaskSummary(state.statistics) }
-                item(key = "filters") { TaskFilters(state.filter, onFilterSelected) }
+                item(key = "header") { TaskListHeader(state.isLoading, onRefresh, onOpenSettings) }
+                if (state.content != HomeContent.ConnectionRequired) {
+                    item(key = "statistics") { TaskSummary(state.statistics) }
+                    item(key = "filters") { TaskFilters(state.filter, onFilterSelected) }
+                }
                 if (state.isLoading) {
                     item(key = "progress") { LoadingTasks(state.isRefreshing) }
                 }
@@ -66,6 +70,9 @@ fun HomeScreen(
                 }
                 when (val content = state.content) {
                     HomeContent.Loading -> Unit
+                    HomeContent.ConnectionRequired -> item(key = "connection_required") {
+                        ConnectionRequired(onOpenSettings)
+                    }
                     HomeContent.Empty -> item(key = "empty") {
                         TaskMessage(stringResource(R.string.tasks_empty_title), stringResource(R.string.tasks_empty_body))
                     }
@@ -91,7 +98,7 @@ fun HomeScreen(
 /** Shows product identity and a manual refresh action that disables during an active request. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun TaskListHeader(isLoading: Boolean, onRefresh: () -> Unit) {
+private fun TaskListHeader(isLoading: Boolean, onRefresh: () -> Unit, onOpenSettings: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(TaskPilotSpacing.Small)) {
         Text(
             stringResource(R.string.app_name), style = MaterialTheme.typography.headlineSmall,
@@ -110,6 +117,7 @@ private fun TaskListHeader(isLoading: Boolean, onRefresh: () -> Unit) {
                 stringResource(R.string.tasks_heading), style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.padding(vertical = TaskPilotSpacing.Medium).semantics { heading() },
             )
+            OutlinedButton(onClick = onOpenSettings) { Text(stringResource(R.string.connection_settings)) }
             OutlinedButton(onClick = onRefresh, enabled = !isLoading) { Text(stringResource(R.string.tasks_refresh)) }
         }
     }
@@ -238,23 +246,10 @@ private fun TaskError(error: ApiError, onRetry: () -> Unit, isLoading: Boolean, 
                 style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.error,
                 modifier = Modifier.semantics { heading() },
             )
-            Text(errorMessage(error), style = MaterialTheme.typography.bodyLarge)
+            Text(apiErrorMessage(error), style = MaterialTheme.typography.bodyLarge)
             Button(onClick = onRetry, enabled = !isLoading) { Text(stringResource(R.string.tasks_retry)) }
         }
     }
-}
-
-/** Converts typed repository errors into concise connection or API recovery instructions. */
-@Composable
-private fun errorMessage(error: ApiError): String = when (error) {
-    ApiError.NotConfigured -> stringResource(R.string.tasks_error_not_configured)
-    ApiError.InvalidUrl -> stringResource(R.string.tasks_error_invalid_url)
-    ApiError.Connection -> stringResource(R.string.tasks_error_connection)
-    ApiError.Timeout -> stringResource(R.string.tasks_error_timeout)
-    ApiError.NotFound -> stringResource(R.string.tasks_error_not_found)
-    is ApiError.Validation -> stringResource(R.string.tasks_error_validation)
-    is ApiError.Http -> stringResource(R.string.tasks_error_http, error.statusCode)
-    ApiError.InvalidResponse -> stringResource(R.string.tasks_error_response)
 }
 
 /** Previews the successfully loaded empty state with the shared dark theme. */
@@ -262,4 +257,13 @@ private fun errorMessage(error: ApiError): String = when (error) {
 @Composable
 private fun HomeScreenPreview() {
     TaskPilotTheme { HomeScreen(HomeUiState(HomeContent.Empty), {}, {}, {}) }
+}
+
+/** Invites first-time users to choose a server without presenting a failed network request. */
+@Composable
+private fun ConnectionRequired(onConnect: () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(TaskPilotSpacing.Large)) {
+        TaskMessage(stringResource(R.string.connection_required_title), stringResource(R.string.connection_required_body))
+        Button(onClick = onConnect) { Text(stringResource(R.string.connection_open)) }
+    }
 }

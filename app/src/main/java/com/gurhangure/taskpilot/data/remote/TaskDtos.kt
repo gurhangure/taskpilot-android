@@ -43,3 +43,7 @@ data class UpdateTaskRequestDto(
 /** Reads only the field errors needed from ASP.NET Core ValidationProblemDetails. */
 @Serializable
 internal data class ValidationProblemDto(val errors: Map<String, List<String>> = emptyMap())
+
+/** Matches the existing lightweight health endpoint response. */
+@Serializable
+data class HealthResponseDto(val status: String)

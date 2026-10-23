@@ -2,38 +2,46 @@ package com.gurhangure.taskpilot.e2e
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasScrollAction
+import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performImeAction
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.performTextReplacement
 import com.gurhangure.taskpilot.MainActivity
+import com.gurhangure.taskpilot.TaskPilotApplication
 import org.junit.Rule
 import org.junit.Test
 
-/** Exercises real activity launch, retry, and recreation with CI's unconfigured endpoint. */
+/** Exercises real first-launch navigation, validation, and recreation with no external backend. */
 class AppStartupTest {
     @get:Rule
     val compose = createAndroidComposeRule<MainActivity>()
 
-    /** Startup and recreation preserve an actionable task-list screen without requiring a backend. */
+    /** A fresh installation can configure in-app and return safely after invalid input or recreation. */
     @Test
     fun launchesAndRecreatesWithoutBackend() {
+        compose.waitUntil(timeoutMillis = 5_000) {
+            (compose.activity.application as TaskPilotApplication).connections.initialized.value
+        }
         compose.onNodeWithText("TaskPilot").assertIsDisplayed()
-        assertConfigurationGuidance()
-        compose.onNode(hasScrollAction()).performScrollToNode(hasText("Retry"))
-        compose.onNodeWithText("Retry").performClick()
-        assertConfigurationGuidance()
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText("Connect to Server"))
+        compose.onNodeWithText("Connect to Server").performClick()
+        compose.onNode(hasSetTextAction()).performTextReplacement("not a URL").performImeAction()
+        compose.onNodeWithText("Save & Connect").performScrollTo().performClick()
+        compose.onNodeWithText("Connection failed").performScrollTo().assertIsDisplayed()
+        compose.activityRule.scenario.recreate()
+        compose.onNodeWithText("Connection failed").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Back to Task List").performScrollTo().performClick()
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText("Connect to Server"))
+        compose.onNodeWithText("Connect to Server").assertIsDisplayed()
         compose.activityRule.scenario.recreate()
         compose.onNode(hasScrollAction()).performScrollToNode(hasText("TaskPilot"))
         compose.onNodeWithText("TaskPilot").assertIsDisplayed()
-        assertConfigurationGuidance()
-    }
-
-    /** Verifies configuration failures stay visible and actionable after screen lifecycle changes. */
-    private fun assertConfigurationGuidance() {
-        val message = "API connection not configured. Set the backend address in the build configuration, then reopen the app."
-        compose.onNode(hasScrollAction()).performScrollToNode(hasText(message))
-        compose.onNodeWithText(message).assertIsDisplayed()
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText("Connect to Server"))
+        compose.onNodeWithText("Connect to Server").assertIsDisplayed()
     }
 }

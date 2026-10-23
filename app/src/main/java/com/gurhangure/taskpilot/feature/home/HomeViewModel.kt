@@ -11,11 +11,16 @@ import com.gurhangure.taskpilot.data.repository.ConnectionRepository
 import com.gurhangure.taskpilot.data.repository.ConnectionState
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 
 /** Loads tasks and handles screen actions while keeping transport details outside Compose. */
@@ -25,12 +30,22 @@ class HomeViewModel(private val connections: ConnectionRepository) : ViewModel()
     private var loadJob: Job? = null
 
     init {
-        refresh()
+        viewModelScope.launch {
+            combine(connections.initialized, connections.endpoint) { ready, endpoint -> ready to endpoint }
+                .filter { it.first }
+                .distinctUntilChanged()
+                .collect {
+                    loadJob?.cancelAndJoin()
+                    loadJob = null
+                    mutableUiState.update { state -> state.copy(content = HomeContent.Loading, isRefreshing = false, refreshError = null) }
+                    refresh()
+                }
+        }
     }
 
     /** Fetches the current endpoint once, ignoring repeated actions while a request is active. */
     fun refresh() {
-        if (loadJob?.isActive == true) return
+        if (!connections.initialized.value || loadJob?.isActive == true) return
         loadJob = viewModelScope.launch {
             val previous = mutableUiState.value
             mutableUiState.update {
@@ -55,7 +70,9 @@ class HomeViewModel(private val connections: ConnectionRepository) : ViewModel()
                             refreshError = null,
                         )
                         is ApiResult.Failure -> state.copy(
-                            content = if (state.hasLoaded) state.content else HomeContent.Error(result.error),
+                            content = if (state.hasLoaded) state.content
+                            else if (result.error == ApiError.NotConfigured) HomeContent.ConnectionRequired
+                            else HomeContent.Error(result.error),
                             isRefreshing = false,
                             refreshError = result.error.takeIf { state.hasLoaded },
                         )

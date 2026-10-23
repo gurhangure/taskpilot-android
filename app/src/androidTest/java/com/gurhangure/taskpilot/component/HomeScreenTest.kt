@@ -152,15 +152,30 @@ class HomeScreenTest {
             val density = LocalDensity.current.density
             CompositionLocalProvider(LocalDensity provides Density(density, fontScale = 2f)) {
                 TaskPilotTheme {
-                    HomeScreen(HomeUiState(HomeContent.Error(ApiError.NotConfigured)), {}, {}, {})
+                    HomeScreen(HomeUiState(HomeContent.ConnectionRequired), {}, {}, {})
                 }
             }
         }
         compose.onNodeWithText("TaskPilot").assertIsDisplayed()
-        scrollTo("API connection not configured. Set the backend address in the build configuration, then reopen the app.")
-        compose.onNodeWithText("API connection not configured. Set the backend address in the build configuration, then reopen the app.").assertIsDisplayed()
-        scrollTo("Retry")
-        compose.onNodeWithText("Retry").assertIsDisplayed()
+        scrollTo("Choose a server to load your tasks. Your connection will be saved on this device.")
+        compose.onNodeWithText("Choose a server to load your tasks. Your connection will be saved on this device.").assertIsDisplayed()
+        scrollTo("Connect to Server")
+        compose.onNodeWithText("Connect to Server").assertIsDisplayed()
+    }
+
+    /** First launch offers a prominent in-app connection action without showing an API error. */
+    @Test
+    fun firstLaunchOpensConnectionSettings() {
+        var opened = 0
+        compose.setContent {
+            TaskPilotTheme {
+                HomeScreen(HomeUiState(HomeContent.ConnectionRequired), {}, {}, {}, onOpenSettings = { opened++ })
+            }
+        }
+        scrollTo("Connect to Server")
+        compose.onNodeWithText("Connect to Server").performClick()
+        compose.runOnIdle { assertEquals(1, opened) }
+        compose.onNodeWithText("Unable to load tasks").assertDoesNotExist()
     }
 
     /** Supplies state directly to the screen so component tests never require a backend. */

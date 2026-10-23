@@ -6,6 +6,12 @@ import java.util.UUID
 
 /** Provides asynchronous task operations without exposing HTTP or serialization types. */
 interface TaskRepository {
+    /** Checks connectivity using the repository contract; remote implementations also verify API identity. */
+    suspend fun testConnection(): ApiResult<Unit> = when (val result = list()) {
+        is ApiResult.Success -> ApiResult.Success(Unit)
+        is ApiResult.Failure -> result
+    }
+
     /** Returns tasks in the backend's stable order. */
     suspend fun list(): ApiResult<List<Task>>
 

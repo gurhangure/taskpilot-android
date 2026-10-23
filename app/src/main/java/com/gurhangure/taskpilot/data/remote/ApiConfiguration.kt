@@ -3,13 +3,13 @@ package com.gurhangure.taskpilot.data.remote
 import java.net.URI
 import okhttp3.HttpUrl.Companion.toHttpUrl
 
-/** Validates and normalizes an endpoint; HTTP requires one explicitly permitted local IPv4 host. */
-class ApiConfiguration(baseUrl: String, allowedHttpHost: String? = null) {
+/** Validates and normalizes an endpoint; HTTP requires the emulator exception or one explicitly permitted private debug host. */
+class ApiConfiguration(baseUrl: String, allowedHttpHost: String? = null, allowEmulatorHttp: Boolean = false) {
     val baseUrl: String
 
     init {
         val uri = try {
-            URI(baseUrl)
+            URI(baseUrl.trim())
         } catch (_: java.net.URISyntaxException) {
             throw IllegalArgumentException("Enter a valid API base URL.")
         }
@@ -20,9 +20,10 @@ class ApiConfiguration(baseUrl: String, allowedHttpHost: String? = null) {
         require(uri.port == -1 || uri.port in 1..65535) { "API port must be between 1 and 65535." }
         val secure = uri.scheme.equals("https", ignoreCase = true)
         val localHttp = uri.scheme.equals("http", ignoreCase = true) &&
-            uri.host == allowedHttpHost && isLocalDevelopmentHost(uri.host)
-        require(secure || localHttp) { "Use HTTPS or the explicitly permitted debug HTTP host." }
-        val url = baseUrl.toHttpUrl()
+            ((allowEmulatorHttp && uri.host == "10.0.2.2") ||
+                (uri.host == allowedHttpHost && isLocalDevelopmentHost(uri.host)))
+        require(secure || localHttp) { "Use HTTPS. HTTP is supported only for the emulator or an explicitly permitted debug host." }
+        val url = baseUrl.trim().toHttpUrl()
         this.baseUrl = url.newBuilder()
             .encodedPath(url.encodedPath.trimEnd('/') + "/")
             .build().toString()

@@ -198,15 +198,36 @@ class RemoteTaskRepositoryTest {
                 createRepository = { RemoteTaskRepository(factory.create(it)) },
                 allowedHttpHost = firstUrl.host,
             )
+            server.enqueue(jsonResponse(200, """{"status":"ok"}"""))
             server.enqueue(jsonResponse(200, "[]"))
             connections.configure(firstUrl.toString())
             assertEquals(ApiResult.Success(Unit), connections.testConnection())
+            secondServer.enqueue(jsonResponse(200, """{"status":"ok"}"""))
             secondServer.enqueue(jsonResponse(200, "[]"))
             connections.configure(secondUrl.toString())
             assertEquals(ApiResult.Success(Unit), connections.testConnection())
-            assertEquals(1, server.requestCount)
-            assertEquals(1, secondServer.requestCount)
+            assertEquals(2, server.requestCount)
+            assertEquals(2, secondServer.requestCount)
         }
+    }
+
+    /** Requires both documented response shapes rather than accepting an unrelated HTTP success page. */
+    @Test
+    fun verifiesHealthAndTaskContracts() = runBlocking {
+        server.enqueue(jsonResponse(200, """{"status":"ok"}"""))
+        server.enqueue(jsonResponse(200, "[]"))
+        assertEquals(ApiResult.Success(Unit), repository.testConnection())
+        assertEquals("/deployment/api/health", server.takeRequest(2, TimeUnit.SECONDS)?.path)
+        assertEquals("/deployment/api/tasks", server.takeRequest(2, TimeUnit.SECONDS)?.path)
+        listOf("<html>hello</html>", "{}", """{"status":"wrong-service"}""").forEach { body ->
+            server.enqueue(jsonResponse(200, body))
+            assertEquals(ApiResult.Failure(ApiError.InvalidResponse), repository.testConnection())
+        }
+        server.enqueue(jsonResponse(200, """{"status":"ok"}"""))
+        server.enqueue(jsonResponse(200, """{"status":"ok"}"""))
+        assertEquals(ApiResult.Failure(ApiError.InvalidResponse), repository.testConnection())
+        server.enqueue(MockResponse().setResponseCode(404))
+        assertEquals(ApiResult.Failure(ApiError.NotFound), repository.testConnection())
     }
 
     /** Retains a path prefix to test Retrofit base-URL normalization and relative endpoints. */

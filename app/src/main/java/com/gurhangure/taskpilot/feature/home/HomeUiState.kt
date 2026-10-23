@@ -11,6 +11,9 @@ sealed interface HomeContent {
     /** The first request is still running. */
     data object Loading : HomeContent
 
+    /** No server has been chosen; no network request has been attempted. */
+    data object ConnectionRequired : HomeContent
+
     /** The API returned an empty task list. */
     data object Empty : HomeContent
 

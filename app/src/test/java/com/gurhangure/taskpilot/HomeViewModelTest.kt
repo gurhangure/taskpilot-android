@@ -96,7 +96,7 @@ class HomeViewModelTest {
         val connections = InMemoryConnectionRepository({ error("No valid endpoint should be used") })
         val viewModel = ViewModelProvider(store, HomeViewModel.factory(connections))[HomeViewModel::class.java]
         runCurrent()
-        assertEquals(HomeContent.Error(ApiError.NotConfigured), viewModel.uiState.value.content)
+        assertEquals(HomeContent.ConnectionRequired, viewModel.uiState.value.content)
         connections.configure("not a URL")
         viewModel.retry()
         runCurrent()

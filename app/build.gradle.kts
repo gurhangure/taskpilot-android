@@ -13,7 +13,7 @@ fun javaString(value: String): String = "\"" + value
     .replace("\\", "\\\\").replace("\"", "\\\"")
     .replace("\n", "\\n").replace("\r", "\\r") + "\""
 
-/** Generates a debug-only policy permitting cleartext to at most one explicit local host. */
+/** Generates a debug-only policy permitting emulator HTTP and at most one explicit private debug host. */
 abstract class GenerateDebugNetworkPolicy : DefaultTask() {
     @get:Input
     abstract val httpHost: Property<String>
@@ -33,7 +33,7 @@ abstract class GenerateDebugNetworkPolicy : DefaultTask() {
                     (octets[0] == 172 && octets[1] in 16..31) ||
                     (octets[0] == 192 && octets[1] == 168))
             )) { "taskpilot.debugHttpHost must be an explicit private IPv4 address." }
-        val domain = if (host.isEmpty()) "" else
+        val domain = if (host.isEmpty() || host == "10.0.2.2") "" else
             "<domain-config cleartextTrafficPermitted=\"true\"><domain includeSubdomains=\"false\">$host</domain></domain-config>"
         val output = outputDirectory.file("xml/debug_network_security_config.xml").get().asFile
         output.parentFile.mkdirs()
@@ -41,6 +41,7 @@ abstract class GenerateDebugNetworkPolicy : DefaultTask() {
             <?xml version="1.0" encoding="utf-8"?>
             <network-security-config>
                 <base-config cleartextTrafficPermitted="false" />
+                <domain-config cleartextTrafficPermitted="true"><domain includeSubdomains="false">10.0.2.2</domain></domain-config>
                 $domain
             </network-security-config>
         """.trimIndent())
@@ -117,6 +118,7 @@ dependencies {
     implementation(libs.retrofit.serialization)
     implementation(libs.okhttp)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.androidx.datastore.preferences)
     testImplementation(libs.junit)
     testImplementation(libs.mockwebserver)
     testImplementation(libs.kotlinx.coroutines.test)

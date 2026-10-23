@@ -10,6 +10,10 @@ import retrofit2.http.Path
 
 /** Declares the backend's task routes with cancellable Retrofit coroutine calls. */
 interface TaskApi {
+    /** Retrieves the documented health status without making mutations. */
+    @GET("api/health")
+    suspend fun health(): Response<HealthResponseDto>
+
     /** Retrieves server-ordered task snapshots. */
     @GET("api/tasks")
     suspend fun list(): Response<List<TaskResponseDto>>
