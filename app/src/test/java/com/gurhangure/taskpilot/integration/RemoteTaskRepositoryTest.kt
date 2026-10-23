@@ -118,10 +118,11 @@ class RemoteTaskRepositoryTest {
             "[${taskJson.replace(id.toString(), "not-a-guid")}]",
             "[${taskJson.replace("2026-10-22T12:00:00.1234567Z", "yesterday")}]",
             "[${taskJson.replace("false", "\"false\"")}]",
+            "[${taskJson.replace("false", "\"true\"")}]",
         )
         invalidBodies.forEach { body ->
             server.enqueue(jsonResponse(200, body))
-            assertEquals(ApiResult.Failure(ApiError.InvalidResponse), repository.list())
+            assertEquals("Unexpected body: $body", ApiResult.Failure(ApiError.InvalidResponse), repository.list())
         }
         server.enqueue(MockResponse().setResponseCode(204))
         assertEquals(ApiResult.Failure(ApiError.InvalidResponse), repository.list())

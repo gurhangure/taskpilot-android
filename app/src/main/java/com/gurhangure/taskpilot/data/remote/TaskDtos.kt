@@ -13,6 +13,7 @@ data class TaskResponseDto(
     val id: String,
     val title: String,
     val description: String?,
+    @Serializable(with = StrictBooleanSerializer::class)
     val isCompleted: Boolean,
     val createdAtUtc: String,
 ) {
