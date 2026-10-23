@@ -2,7 +2,7 @@
 
 Native Android client for the TaskPilot portfolio project, built with Kotlin and Jetpack Compose. Android, future SwiftUI, and future React clients share [the public TaskPilot design system](TASKPILOT_DESIGN_SYSTEM.md) while following their platform conventions.
 
-The app opens a dark introductory screen without making a network request. The networking foundation supports task CRUD and explicit connection checks; task management UI and a Settings screen are not implemented yet.
+The app opens a dark Task List screen and retrieves tasks from the configured TaskPilot API. It shows Total, Active, and Completed counts, read-only task cards, local All / Active / Completed filters, and manual Refresh and Retry actions. Initial loading, empty results, missing connection configuration, and API failures have explicit states. Task creation, editing, deletion, completion changes, search, and Settings UI are not implemented yet.
 
 ## Toolchain
 
@@ -41,8 +41,9 @@ app/src/main/java/com/gurhangure/taskpilot/
 ├── TaskPilotApplication.kt     # Constructor-based networking composition
 ├── MainActivity.kt             # Lifecycle owner and Compose entry point
 ├── feature/home/
-│   ├── HomeViewModel.kt        # Immutable StateFlow and initial UI state
-│   └── HomeScreen.kt           # Stateless rendering and placeholder component
+│   ├── HomeViewModel.kt        # Initial load, retry, refresh, and filter actions
+│   ├── HomeUiState.kt          # Explicit content states, derived counts and filters
+│   └── HomeScreen.kt           # Stateless lazy list and reusable screen components
 ├── data/
 │   ├── model/                 # Task, typed operation errors/results, content validation
 │   ├── repository/            # TaskRepository, RemoteTaskRepository, connection state
@@ -50,13 +51,17 @@ app/src/main/java/com/gurhangure/taskpilot/
 └── ui/theme/                  # Dark colors, typography, spacing, and shapes
 ```
 
-`MainActivity` obtains the screen ViewModel and collects its state with lifecycle awareness. State flows down to Compose; future user actions will flow back to the ViewModel. The screen makes no data-source calls. There are no task actions or navigation destinations yet.
+`MainActivity` injects the application connection repository through the Home ViewModel factory and collects immutable UI state with lifecycle awareness. The ViewModel acquires the current `TaskRepository` for each request and loads tasks in `viewModelScope`. Results flow down to Compose; Refresh, Retry, and filter selections flow back to the ViewModel. Composables contain no networking or configuration access. Activity recreation retains the ViewModel and does not trigger a duplicate initial request.
 
 `TaskPilotApplication` constructs one HTTP factory and an in-memory `ConnectionRepository`. The repository validates URL changes, creates a fresh endpoint-specific `RemoteTaskRepository`, and exposes immutable `StateFlow<ConnectionState>`: Unconfigured, Configured, Checking, Connected, or Failed. An explicit `testConnection()` uses GET /api/tasks, validates its response, and discards the data. Configuration alone does not claim connectivity. Cancelled probes propagate cancellation; obsolete probes cannot update state after reconfiguration.
 
-`TaskRepository` exposes suspend list/get/create/update/delete methods with `ApiResult`. `RemoteTaskRepository` validates write content, maps HTTP/serialization failures, and converts DTOs into UI-independent `Task` snapshots with `UUID` and `Instant`. Retrofit owns route/body serialization and OkHttp owns transport. Future ViewModels receive repositories through constructors, without HTTP types or calls in composables. The home ViewModel remains unchanged until task UI work.
+`TaskRepository` exposes suspend list/get/create/update/delete methods with `ApiResult`. `RemoteTaskRepository` validates write content, maps HTTP/serialization failures, and converts DTOs into UI-independent `Task` snapshots with `UUID` and `Instant`. Retrofit owns route/body serialization and OkHttp owns transport. The Home ViewModel receives the connection repository through its constructor and accesses task operations through `TaskRepository`, without HTTP types or calls in composables.
 
 Configuration is in memory and reapplied from non-secret build properties after process restart. Reacquire `connections.taskRepository()` after `configure(url)`; already-started operations and previously held repository references retain their original endpoint. Invalid URL updates return InvalidUrl and preserve the last usable client. Runtime changes may use HTTPS or the one HTTP host permitted by the installed debug build; changing the HTTP host requires a rebuild.
+
+The list uses stable task-ID keys in a `LazyColumn`, bounded content width, wrapping statistics and filter chips, native selected semantics, and explicit status labels plus strike-through styling for completed tasks. Counts always describe the entire retrieved collection; filtering makes no network requests. Unknown counts are shown as a dash until data has loaded. An empty filter result is distinct from an empty API list.
+
+Only one list request runs at a time. Refresh retains the last loaded collection, updates counts after success, and presents an inline warning with Retry on failure. Cancellation is propagated rather than presented as an API error. Data lives only in the ViewModel for the current process; there is no disk cache or offline mode.
 
 The fixed dark theme disables dynamic colors and theme switching. Shared tokens use dp/sp, native typography, semantic headings, system insets, a bounded content width, and vertical scrolling for large fonts. Platform launch and system-bar styling are dark too.
 
@@ -66,7 +71,7 @@ The fixed dark theme disables dynamic colors and theme switching. Shared tokens 
 2. Clone this repository and open its root in Android Studio. Preserve the checked-in Gradle wrapper and version catalog.
 3. Install Android SDK Platform 36 and Build Tools 36.0.0 through SDK Manager. Accept any required licenses yourself.
 4. Let Gradle sync. Android Studio manages the ignored `local.properties` SDK location.
-5. Run the `app` configuration on an API 26+ device or emulator. No API server is needed.
+5. Run the `app` configuration on an API 26+ device or emulator. Configure and start the API separately to load tasks; an unconfigured build shows actionable connection guidance.
 
 Build from the project root (`gradlew.bat` on Windows):
 
@@ -78,16 +83,16 @@ The debug APK is produced at `app/build/outputs/apk/debug/app-debug.apk`. It use
 
 ## Tests and CI
 
-Automated tests are authored for GitHub Actions and are **not run locally by default**. The networking changes have not been tested locally; their CI result is pending/unverified.
+Automated tests are authored for GitHub Actions and are **not run locally by default**. The Task List changes have not been tested locally; their CI result is pending/unverified.
 
 | Level | Foundation coverage | Execution |
 | --- | --- | --- |
-| JVM unit | URL validation/normalization, local HTTP policy, connection state/reconfiguration/cancellation, initial ViewModel state | `:app:testDebugUnitTest` in CI |
+| JVM unit | URL validation/normalization, local HTTP policy, connection state/reconfiguration/cancellation; ViewModel loading/success/empty/error, retry/refresh deduplication, cancellation, counts and filters | `:app:testDebugUnitTest` in CI |
 | Repository/API integration | Real Retrofit/OkHttp/JSON against MockWebServer: CRUD routes, null/false serialization, UTC timestamps, validation, 404/HTTP errors, malformed bodies, DNS failure, timeout, cancellation, endpoint changes | `:app:testDebugUnitTest` includes the `integration` package |
-| Compose component | Standalone home screen and reachable guidance at 2x font scale | Emulator `component` package |
-| E2E | Real activity launch and recreation without backend configuration | Emulator `e2e` package; startup smoke coverage only |
+| Compose component | Loading, empty, populated, filtered, connection/HTTP errors, retry, refresh progress/failure, and reachable guidance at 2x font scale | Emulator `component` package |
+| E2E | Real activity launch, configuration guidance, retry, and recreation without backend configuration | Emulator `e2e` package; startup smoke coverage only |
 
-The existing template arithmetic and package-name examples are replaced with behavior checks. Full create/edit/complete/reopen/delete E2E journeys and error/loading/empty component coverage must be added alongside those features. The startup smoke test is not evidence of CRUD coverage.
+The existing template arithmetic and package-name examples are replaced with behavior checks. Full create/edit/complete/reopen/delete E2E journeys must be added alongside those features. Existing repository integration coverage remains in place. The startup smoke test is not evidence of CRUD coverage.
 
 [Android CI](.github/workflows/android.yml) runs on pushes and pull requests to `main`, and supports manual dispatch. It provides:
 
@@ -129,10 +134,12 @@ For an HTTPS server:
 To explicitly opt a debug APK into local HTTP for the Android emulator:
 
 ```sh
-./gradlew :app:assembleDebug -Ptaskpilot.debugHttpHost=10.0.2.2
+./gradlew :app:assembleDebug \
+  -Ptaskpilot.debugHttpHost=10.0.2.2 \
+  -Ptaskpilot.apiBaseUrl=http://10.0.2.2:5087/
 ```
 
-This selects `http://10.0.2.2:5080/`, matching the backend README's local port example. For another port, add `-Ptaskpilot.apiBaseUrl=http://10.0.2.2:5087/`. The backend must already be running separately; no server is started by the app or build.
+This explicitly selects `http://10.0.2.2:5087/` and permits debug cleartext only for `10.0.2.2`. Start the backend separately on port 5087 before opening the screen, and apply its database setup as described in the backend README. The Gradle fallback when only the debug host is supplied remains port 5080; use the explicit URL property above for port 5087. Install/run the APK generated with these properties (or sync Android Studio with the same Gradle project properties); running a different build may use a different endpoint.
 
 For a physical device, replace `HOST_LAN_IP` below with the host's private IPv4 address:
 
@@ -142,7 +149,7 @@ For a physical device, replace `HOST_LAN_IP` below with the host's private IPv4 
   -Ptaskpilot.apiBaseUrl=http://HOST_LAN_IP:5080/
 ```
 
-Both properties may instead be supplied as Gradle project properties in Android Studio's Gradle configuration. No source-code edit is required. URLs are validated at application configuration time and normalized with a trailing slash; deployment path prefixes are preserved. Invalid configuration becomes Failed(InvalidUrl) rather than crashing startup. No Settings screen or on-screen connection status is added in this increment; future presentation code consumes `TaskPilotApplication.connections` through constructor injection.
+Both properties may instead be supplied as Gradle project properties in Android Studio's Gradle configuration. No source-code edit is required. URLs are validated at application configuration time and normalized with a trailing slash; deployment path prefixes are preserved. Invalid configuration becomes Failed(InvalidUrl) rather than crashing startup. The Task List loads automatically once per ViewModel and shows configuration or connection failures with Retry. After an external task change, use Refresh. Settings and persistent URL selection remain future work.
 
 `10.0.2.2` is specific to the Android emulator and maps to the development host's loopback interface. Physical devices need a reachable private LAN address, a backend listener explicitly bound to that address, and trusted-network connectivity. Device `localhost` refers to the device itself. Follow the backend README for server setup and narrow firewall rules; do not expose this unauthenticated demo to the internet.
 
@@ -150,14 +157,14 @@ Both properties may instead be supplied as Gradle project properties in Android 
 
 The main manifest grants INTERNET and disables cleartext. Debug builds generate a network-security resource with cleartext disabled by default and, only when explicitly configured, one exact IPv4 domain exception with no subdomains. Allowed development hosts are RFC1918 private addresses or 127.0.0.1; the emulator address is in the private range. The exception is host-scoped and permits that host's ports, while the configured URL selects the actual port. Release builds do not include this debug manifest/resource, always have an empty allowed-HTTP-host setting, and reject HTTP URLs even when debug properties were supplied.
 
-The current local API provides neither HTTPS nor authentication. HTTP traffic and task contents can be observed or changed on the network; use disposable demo data on a trusted LAN. HTTPS uses normal platform certificate and hostname verification; development certificates must be properly trusted rather than bypassed. Physical-device connectivity and live backend integration have **not** been verified. Build-generated network policies and the new code await CI verification.
+The current local API provides neither HTTPS nor authentication. HTTP traffic and task contents can be observed or changed on the network; use disposable demo data on a trusted LAN. HTTPS uses normal platform certificate and hostname verification; development certificates must be properly trusted rather than bypassed. Physical-device connectivity and live backend integration have **not** been verified. Task List rendering, automated checks, and the new integration await CI verification.
 
 ## Next increments
 
-1. Wire task repositories into screen ViewModels with constructor injection.
-2. Add loading/empty/error states, task counts, search, and status filters with ViewModel and component coverage.
-3. Implement CRUD and completion workflows, plus deterministic emulator journeys.
-4. Add persistent connection Settings and verify live backend and physical-device connectivity.
+1. Add task creation, editing, deletion, and completion workflows with deterministic emulator journeys.
+2. Add title search.
+3. Add persistent connection Settings.
+4. Verify live backend and physical-device connectivity.
 
 No login, reminders, categories, realtime sync, offline writes, light mode, or theme toggle is planned for v1.
 

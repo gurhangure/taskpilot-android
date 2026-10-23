@@ -2,14 +2,22 @@ package com.gurhangure.taskpilot.feature.home
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Button
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -17,79 +25,241 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.gurhangure.taskpilot.R
+import com.gurhangure.taskpilot.data.model.ApiError
+import com.gurhangure.taskpilot.data.model.Task
+import com.gurhangure.taskpilot.ui.theme.TaskPilotColors
 import com.gurhangure.taskpilot.ui.theme.TaskPilotSpacing
 import com.gurhangure.taskpilot.ui.theme.TaskPilotTheme
 
-/** Renders the introductory screen with safe insets and scrollable, scalable text. */
+/** Renders list state and forwards actions without accessing repositories or network configuration. */
 @Composable
-fun HomeScreen(state: HomeUiState, modifier: Modifier = Modifier) {
+fun HomeScreen(
+    state: HomeUiState,
+    onRefresh: () -> Unit,
+    onRetry: () -> Unit,
+    onFilterSelected: (TaskFilter) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Scaffold(modifier = modifier.fillMaxSize()) { insets ->
-        Column(
-            modifier = Modifier.fillMaxSize().padding(insets)
-                .verticalScroll(rememberScrollState()).padding(TaskPilotSpacing.ExtraLarge),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Column(
-                modifier = Modifier.widthIn(max = 640.dp).fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(TaskPilotSpacing.ExtraLarge),
+        Box(Modifier.fillMaxSize().padding(insets), contentAlignment = Alignment.TopCenter) {
+            LazyColumn(
+                modifier = Modifier.widthIn(max = 640.dp).fillMaxSize(),
+                contentPadding = PaddingValues(TaskPilotSpacing.ExtraLarge),
+                verticalArrangement = Arrangement.spacedBy(TaskPilotSpacing.Large),
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(TaskPilotSpacing.Small)) {
-                    Text(
-                        text = stringResource(R.string.app_name),
-                        style = MaterialTheme.typography.headlineSmall,
-                        modifier = Modifier.semantics { heading() },
-                    )
-                    Text(
-                        text = stringResource(R.string.home_subtitle),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                item(key = "header") { TaskListHeader(state.isLoading, onRefresh) }
+                item(key = "statistics") { TaskSummary(state.statistics) }
+                item(key = "filters") { TaskFilters(state.filter, onFilterSelected) }
+                if (state.isLoading) {
+                    item(key = "progress") { LoadingTasks(state.isRefreshing) }
                 }
-                if (!state.isTaskListAvailable) TaskListPlaceholder()
+                state.refreshError?.let { error ->
+                    item(key = "refresh_error") { TaskError(error, onRetry, state.isLoading, isRefresh = true) }
+                }
+                when (val content = state.content) {
+                    HomeContent.Loading -> Unit
+                    HomeContent.Empty -> item(key = "empty") {
+                        TaskMessage(stringResource(R.string.tasks_empty_title), stringResource(R.string.tasks_empty_body))
+                    }
+                    is HomeContent.Error -> item(key = "error") { TaskError(content.error, onRetry, state.isLoading) }
+                    is HomeContent.Success -> {
+                        val tasks = state.visibleTasks
+                        if (tasks.isEmpty()) {
+                            item(key = "filter_empty") {
+                                TaskMessage(
+                                    stringResource(R.string.tasks_filter_empty_title),
+                                    stringResource(if (state.filter == TaskFilter.Active) R.string.tasks_no_active else R.string.tasks_no_completed),
+                                )
+                            }
+                        }
+                        items(tasks, key = { it.id.toString() }) { task -> TaskCard(task) }
+                    }
+                }
             }
         }
     }
 }
 
-/** Explains the upcoming task area without suggesting a loaded empty task list. */
+/** Shows product identity and a manual refresh action that disables during an active request. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun TaskListPlaceholder() {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-    ) {
-        Column(
-            modifier = Modifier.padding(TaskPilotSpacing.ExtraLarge),
-            verticalArrangement = Arrangement.spacedBy(TaskPilotSpacing.Medium),
+private fun TaskListHeader(isLoading: Boolean, onRefresh: () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(TaskPilotSpacing.Small)) {
+        Text(
+            stringResource(R.string.app_name), style = MaterialTheme.typography.headlineSmall,
+            modifier = Modifier.semantics { heading() },
+        )
+        Text(
+            stringResource(R.string.home_subtitle), style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalArrangement = Arrangement.spacedBy(TaskPilotSpacing.Small),
         ) {
             Text(
-                text = stringResource(R.string.home_placeholder_title),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.semantics { heading() },
+                stringResource(R.string.tasks_heading), style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.padding(vertical = TaskPilotSpacing.Medium).semantics { heading() },
             )
-            Text(
-                text = stringResource(R.string.home_placeholder_body),
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                text = stringResource(R.string.home_connection_note),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            OutlinedButton(onClick = onRefresh, enabled = !isLoading) { Text(stringResource(R.string.tasks_refresh)) }
+        }
+    }
+}
+
+/** Presents counts from the whole list, allowing metrics to wrap on narrow or large-font layouts. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun TaskSummary(statistics: TaskStatistics?) {
+    FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(TaskPilotSpacing.Small),
+        verticalArrangement = Arrangement.spacedBy(TaskPilotSpacing.Small),
+    ) {
+        TaskMetric(stringResource(R.string.tasks_total), statistics?.total)
+        TaskMetric(stringResource(R.string.tasks_active), statistics?.active)
+        TaskMetric(stringResource(R.string.tasks_completed), statistics?.completed)
+    }
+}
+
+/** Keeps a count and its label together as a single accessibility announcement. */
+@Composable
+private fun TaskMetric(label: String, count: Int?) {
+    val value = count?.toString() ?: stringResource(R.string.tasks_unknown_count)
+    val description = stringResource(R.string.tasks_metric_description, label, value)
+    Surface(
+        modifier = Modifier.widthIn(min = 100.dp).semantics(mergeDescendants = true) {
+            contentDescription = description
+        },
+        shape = MaterialTheme.shapes.medium,
+    ) {
+        Column(Modifier.padding(TaskPilotSpacing.Large), verticalArrangement = Arrangement.spacedBy(TaskPilotSpacing.ExtraSmall)) {
+            Text(value, style = MaterialTheme.typography.titleLarge)
+            Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+/** Uses wrapping Material chips with native selected semantics for local filters. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun TaskFilters(selected: TaskFilter, onSelected: (TaskFilter) -> Unit) {
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(TaskPilotSpacing.Small),
+        verticalArrangement = Arrangement.spacedBy(TaskPilotSpacing.ExtraSmall),
+    ) {
+        TaskFilter.entries.forEach { filter ->
+            FilterChip(
+                selected = selected == filter,
+                onClick = { onSelected(filter) },
+                label = {
+                    Text(stringResource(when (filter) {
+                        TaskFilter.All -> R.string.tasks_all
+                        TaskFilter.Active -> R.string.tasks_active
+                        TaskFilter.Completed -> R.string.tasks_completed
+                    }))
+                },
             )
         }
     }
 }
 
-/** Previews the foundation screen using the shared dark theme. */
+/** Announces initial loading or refresh while keeping progress visible in the scrollable content. */
+@Composable
+private fun LoadingTasks(isRefreshing: Boolean) {
+    Column(verticalArrangement = Arrangement.spacedBy(TaskPilotSpacing.Small)) {
+        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+        Text(
+            stringResource(if (isRefreshing) R.string.tasks_refreshing else R.string.tasks_loading),
+            style = MaterialTheme.typography.bodyMedium,
+        )
+    }
+}
+
+/** Presents a read-only task card with text and color feedback for completed work. */
+@Composable
+private fun TaskCard(task: Task) {
+    Surface(
+        modifier = Modifier.fillMaxWidth().semantics(mergeDescendants = true) {},
+        shape = MaterialTheme.shapes.medium,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+    ) {
+        Column(
+            Modifier.padding(TaskPilotSpacing.Large),
+            verticalArrangement = Arrangement.spacedBy(TaskPilotSpacing.Small),
+        ) {
+            Text(
+                task.title, style = MaterialTheme.typography.bodyLarge,
+                textDecoration = if (task.isCompleted) TextDecoration.LineThrough else TextDecoration.None,
+                color = if (task.isCompleted) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+            )
+            task.description?.takeIf { it.isNotBlank() }?.let { description ->
+                Text(
+                    description, style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 3, overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Text(
+                stringResource(if (task.isCompleted) R.string.tasks_completed else R.string.tasks_active),
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (task.isCompleted) TaskPilotColors.Success else MaterialTheme.colorScheme.primary,
+            )
+        }
+    }
+}
+
+/** Explains a successfully loaded empty collection or a filter with no matches. */
+@Composable
+private fun TaskMessage(title: String, body: String) {
+    Surface(modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.large) {
+        Column(Modifier.padding(TaskPilotSpacing.ExtraLarge), verticalArrangement = Arrangement.spacedBy(TaskPilotSpacing.Medium)) {
+            Text(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
+            Text(body, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+/** Shows actionable API guidance and retry without displaying raw server diagnostics. */
+@Composable
+private fun TaskError(error: ApiError, onRetry: () -> Unit, isLoading: Boolean, isRefresh: Boolean = false) {
+    Surface(modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.large) {
+        Column(Modifier.padding(TaskPilotSpacing.ExtraLarge), verticalArrangement = Arrangement.spacedBy(TaskPilotSpacing.Medium)) {
+            Text(
+                stringResource(if (isRefresh) R.string.tasks_refresh_error else R.string.tasks_error_title),
+                style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.semantics { heading() },
+            )
+            Text(errorMessage(error), style = MaterialTheme.typography.bodyLarge)
+            Button(onClick = onRetry, enabled = !isLoading) { Text(stringResource(R.string.tasks_retry)) }
+        }
+    }
+}
+
+/** Converts typed repository errors into concise connection or API recovery instructions. */
+@Composable
+private fun errorMessage(error: ApiError): String = when (error) {
+    ApiError.NotConfigured -> stringResource(R.string.tasks_error_not_configured)
+    ApiError.InvalidUrl -> stringResource(R.string.tasks_error_invalid_url)
+    ApiError.Connection -> stringResource(R.string.tasks_error_connection)
+    ApiError.Timeout -> stringResource(R.string.tasks_error_timeout)
+    ApiError.NotFound -> stringResource(R.string.tasks_error_not_found)
+    is ApiError.Validation -> stringResource(R.string.tasks_error_validation)
+    is ApiError.Http -> stringResource(R.string.tasks_error_http, error.statusCode)
+    ApiError.InvalidResponse -> stringResource(R.string.tasks_error_response)
+}
+
+/** Previews the successfully loaded empty state with the shared dark theme. */
 @Preview(showBackground = true)
 @Composable
 private fun HomeScreenPreview() {
-    TaskPilotTheme { HomeScreen(HomeUiState()) }
+    TaskPilotTheme { HomeScreen(HomeUiState(HomeContent.Empty), {}, {}, {}) }
 }

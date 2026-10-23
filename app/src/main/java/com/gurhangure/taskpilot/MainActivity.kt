@@ -21,11 +21,17 @@ class MainActivity : ComponentActivity() {
             statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
         )
+        val factory = HomeViewModel.factory((application as TaskPilotApplication).connections)
         setContent {
             TaskPilotTheme {
-                val homeViewModel: HomeViewModel = viewModel()
+                val homeViewModel: HomeViewModel = viewModel(factory = factory)
                 val state by homeViewModel.uiState.collectAsStateWithLifecycle()
-                HomeScreen(state)
+                HomeScreen(
+                    state = state,
+                    onRefresh = homeViewModel::refresh,
+                    onRetry = homeViewModel::retry,
+                    onFilterSelected = homeViewModel::selectFilter,
+                )
             }
         }
     }

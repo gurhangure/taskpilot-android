@@ -1,7 +1,30 @@
 <resources>
     <string name="app_name">TaskPilot</string>
     <string name="home_subtitle">A clear space for your everyday tasks.</string>
-    <string name="home_placeholder_title">Your tasks, in one place</string>
-    <string name="home_placeholder_body">Your task list is coming next. Soon you will be able to create, organize, and complete tasks here.</string>
-    <string name="home_connection_note">No backend connection is needed to open this preview.</string>
+    <string name="tasks_heading">My Tasks</string>
+    <string name="tasks_total">Total</string>
+    <string name="tasks_active">Active</string>
+    <string name="tasks_completed">Completed</string>
+    <string name="tasks_all">All</string>
+    <string name="tasks_refresh">Refresh</string>
+    <string name="tasks_retry">Retry</string>
+    <string name="tasks_loading">Loading tasks…</string>
+    <string name="tasks_refreshing">Refreshing tasks…</string>
+    <string name="tasks_empty_title">No tasks yet</string>
+    <string name="tasks_empty_body">Tasks created in TaskPilot will appear here. Refresh to check for updates.</string>
+    <string name="tasks_filter_empty_title">No matching tasks</string>
+    <string name="tasks_no_active">There are no active tasks. Choose All to see the full list.</string>
+    <string name="tasks_no_completed">There are no completed tasks. Choose All to see the full list.</string>
+    <string name="tasks_error_title">Unable to load tasks</string>
+    <string name="tasks_refresh_error">Could not refresh. Showing the last loaded tasks.</string>
+    <string name="tasks_error_not_configured">API connection not configured. Set the backend address in the build configuration, then reopen the app.</string>
+    <string name="tasks_error_invalid_url">The API address is invalid. Correct the backend address in the build configuration, then reopen the app.</string>
+    <string name="tasks_error_connection">Cannot reach the API. Check that the backend is running and your device can reach it, then retry.</string>
+    <string name="tasks_error_timeout">The API took too long to respond. Check your connection and retry.</string>
+    <string name="tasks_error_not_found">The task endpoint was not found. Check the API address and deployment path, then retry.</string>
+    <string name="tasks_error_validation">The API rejected the request. Check the API address and server configuration, then retry.</string>
+    <string name="tasks_error_http">The API returned HTTP %1$d. Check the backend and retry.</string>
+    <string name="tasks_error_response">The API returned unexpected task data. Check that the backend version is compatible, then retry.</string>
+    <string name="tasks_unknown_count">—</string>
+    <string name="tasks_metric_description">%1$s: %2$s</string>
 </resources>
