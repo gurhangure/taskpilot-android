@@ -6,13 +6,13 @@ This foundation opens a dark introductory screen with a future task-list placeho
 
 ## Toolchain
 
-The existing Android Studio project and its compatible versions are preserved:
+The existing Android Studio toolchain is preserved. Compile and target SDK use API 36 because CI could not resolve the API 37 platform package:
 
 | Component | Selected version |
 | --- | --- |
 | Application ID / namespace | `com.gurhangure.taskpilot` |
 | Minimum SDK | 26 (Android 8.0) |
-| Compile / target SDK | 37 (Android 17) |
+| Compile / target SDK | 36 (Android 16) |
 | Android Gradle Plugin | 9.4.1 |
 | Gradle wrapper | 9.6.0, distribution checksum pinned |
 | Kotlin / Compose compiler plugin | 2.2.10 (AGP built-in Kotlin) |
@@ -54,7 +54,7 @@ The fixed dark theme disables dynamic colors and theme switching. Shared tokens 
 
 1. Use an Android Studio stable release that supports AGP 9.4, with JDK 25 available for the generated Gradle daemon criteria.
 2. Clone this repository and open its root in Android Studio. Preserve the checked-in Gradle wrapper and version catalog.
-3. Install Android SDK Platform 37 and Build Tools 36.0.0 through SDK Manager. Accept any required licenses yourself.
+3. Install Android SDK Platform 36 and Build Tools 36.0.0 through SDK Manager. Accept any required licenses yourself.
 4. Let Gradle sync. Android Studio manages the ignored `local.properties` SDK location.
 5. Run the `app` configuration on an API 26+ device or emulator. No API server is needed.
 
@@ -86,7 +86,7 @@ The existing template arithmetic and package-name examples are replaced with beh
 - Gradle caching, read-only repository permissions, bounded timeouts, and cancellation of superseded runs.
 - A 14-day debug APK artifact after the build job succeeds and 7-day diagnostic reports, including on failure.
 
-An APK artifact alone does not mean emulator jobs passed. Review every job before treating a build as verified. API 26 and API 37 runtime behavior and physical devices are not covered by the initial API 35 emulator configuration.
+An APK artifact alone does not mean emulator jobs passed. Review every job before treating a build as verified. API 26 and API 36 runtime behavior and physical devices are not covered by the initial API 35 emulator configuration.
 
 ## Backend and networking
 
@@ -94,7 +94,7 @@ The independently maintained [TaskPilot ASP.NET Core API](https://github.com/gur
 
 Future Settings will accept an explicitly configured base URL and provide a connection test. Android emulator `10.0.2.2` refers to the development host's loopback interface. A physical device instead needs the host's reachable private LAN address and an explicitly configured listener; device `localhost` refers to the device itself.
 
-The backend's current local HTTP setup is not yet supported by this client foundation. Cleartext is explicitly disabled and there is no `INTERNET` permission. A future local-demo HTTP option must be explicit, debug-only, and narrowly scoped with network-security configuration. HTTPS must retain normal certificate validation; changing a URL scheme does not establish certificate trust. Local-network permission requirements for target SDK 37 and physical-device connectivity must be verified during networking work. Do not expose the unauthenticated demo API to the public internet.
+The backend's current local HTTP setup is not yet supported by this client foundation. Cleartext is explicitly disabled and there is no `INTERNET` permission. A future local-demo HTTP option must be explicit, debug-only, and narrowly scoped with network-security configuration. HTTPS must retain normal certificate validation; changing a URL scheme does not establish certificate trust. Local-network permission requirements for target SDK 36 and physical-device connectivity must be verified during networking work. Do not expose the unauthenticated demo API to the public internet.
 
 ## Next increments
 
