@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">TaskPilot</string>
+    <string name="home_subtitle">A clear space for your everyday tasks.</string>
+    <string name="home_placeholder_title">Your tasks, in one place</string>
+    <string name="home_placeholder_body">Your task list is coming next. Soon you will be able to create, organize, and complete tasks here.</string>
+    <string name="home_connection_note">No backend connection is needed to open this preview.</string>
+</resources>
