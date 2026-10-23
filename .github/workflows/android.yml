@@ -26,6 +26,8 @@ jobs:
           distribution: temurin
           java-version: '25'
       - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
       - uses: gradle/actions/setup-gradle@v5
       - name: Install compilation SDK
         run: sdkmanager 'platforms;android-37' 'build-tools;36.0.0'
@@ -64,6 +66,8 @@ jobs:
           distribution: temurin
           java-version: '25'
       - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
       - uses: gradle/actions/setup-gradle@v5
       - name: Install compilation SDK
         run: sdkmanager 'platforms;android-37' 'build-tools;36.0.0'
