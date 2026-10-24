@@ -1,32 +1,15 @@
 # TaskPilot Android
 
-Native Kotlin/Jetpack Compose client for the [TaskPilot API](https://github.com/gurhangure/taskpilot-api). The dark Task List shows Total, Active, and Completed counts, task cards with create/edit, complete/reopen, and confirmed deletion, local title/description search, All / Active / Completed filters, Refresh, and Retry. Connection Settings stores a server URL on the device and applies changes immediately.
+Native Kotlin/Jetpack Compose client for the [TaskPilot API](https://github.com/gurhangure/taskpilot-api), built with Material 3 and MVVM + Repository + unidirectional data flow.
 
-## Quick Start
+Implemented features:
 
-1. **Install TaskPilot:** [download the demo APK](#download-and-install-the-demo-apk), or [run from source in Android Studio](#run-from-source).
-2. **Start your server:** use the [backend source commands or a prebuilt backend package](#backend-setup) on your computer. Android does not include a server.
-3. **Connect in the app:** choose **Connect to Server**. On an Android Emulator, use `http://10.0.2.2:5087/` when the API is listening locally on port 5087. A physical phone needs a reachable HTTPS endpoint with a trusted certificate. Choose **Test Connection**, then **Save & Connect**, and return to the Task List.
+- Create, view, edit, delete, complete, and reopen tasks.
+- Local title/description search, All / Active / Completed filters, and task statistics.
+- Connection Settings with Test Connection, Save & Connect, and Preferences DataStore persistence.
+- Dark-only, accessible Compose UI with loading, empty, error, Retry, and manual Refresh states.
 
-A fresh installation has no server selected. Saved settings are restored on later launches. Standard Android Studio operation and the distributed demo require no Kotlin, Gradle, XML, or local-property edits.
-
-## Download and install the demo APK
-
-1. Sign in to GitHub and open [TaskPilot Android → Actions → Android CI](https://github.com/gurhangure/taskpilot-android/actions/workflows/android.yml).
-2. Select a **successful run on main** containing the **Verified debug/demo APK** job. Confirm that JVM/lint, component, E2E, and demo jobs succeeded for the commit you want.
-3. Scroll to **Artifacts** at the bottom of the run summary and download **taskpilot-android-debug-demo-apk**. GitHub sign-in is required to download Actions artifacts, even from this public repository.
-4. Unzip the downloaded artifact. Inside is **taskpilot-android-debug-demo.apk**. Android installs the APK, not the ZIP.
-5. Transfer the APK to an Android 8.0/API 26 or newer device, or download it there directly and unzip it. Open the APK with the device's Files app or download manager and select **Install**.
-6. If Android prompts you to **Allow from this source** / **Install unknown apps**, authorize only the specific installer you are using. Organization/device policy may block installation; follow that policy. The permission can be revoked after installation.
-7. Open **TaskPilot**, start your backend separately, and follow [Connect Android to the backend](#connect-android-to-the-backend).
-
-This is an **installable, debug-signed demo**, not a production release or an unsigned APK. It is debuggable and uses Android's development signing behavior; no private production keystore or release-signing infrastructure is configured. Hosted runners may generate different debug certificates between builds. If an update reports a conflicting package/signature, record your server URL before uninstalling the previous demo and installing the new one; uninstalling removes local app settings, not tasks stored on the server. The application ID remains `com.gurhangure.taskpilot`.
-
-APK artifacts are retained for **14 days**. Publication requires successful JVM/lint, component, and E2E jobs; failed/cancelled validation jobs prevent it. Pull requests and runs on other branches do not publish the demo artifact. Always select an entirely successful run. If it is missing or expired, choose another successful eligible run or run from source; do not substitute an older APK that lacks the functionality you want. This distribution setup is pending/unverified until its own CI succeeds. There is no permanent Android release download or automatic GitHub Release publishing.
-
-**Physical-phone limitation:** the stock demo permits HTTPS with normal certificate/hostname validation and only the existing explicit emulator HTTP exception for `10.0.2.2`. Entering an arbitrary private-LAN HTTP URL does not authorize cleartext traffic. The loopback-only HTTP backend command below is intended for emulator use and does not configure HTTPS for a phone.
-
-## Run from source
+## Quick Start: run from source
 
 Install Git and an Android Studio version compatible with **AGP 9.4.1**, **JDK 25**, Android SDK Platform **36**, and Build Tools **36.0.0**. Use Android Studio's SDK Manager to install missing SDK components and accept their licenses yourself. Network access is needed for the first Gradle dependency sync.
 
@@ -40,11 +23,13 @@ cd taskpilot-android
 3. In Device Manager create/start an API 26+ emulator, or select a connected supported device. CI uses an API 35 emulator.
 4. Select the **app** run configuration and press **Run ▶**. A fresh install shows **Connect to Server**; configure it inside the app.
 
-No source-file, Gradle-property, or manually edited `local.properties` changes are required. The same install/configure flow applies to source and APK users. Optional custom development build properties are documented separately below and are not needed for normal operation.
+No source-file, Gradle-property, or manually edited `local.properties` changes are required. Optional custom development build properties are documented separately below and are not needed for normal operation.
+
+Next, start the separate backend and connect the emulator using the steps below.
 
 ## Backend setup
 
-**Source prerequisites:** Git and the **.NET SDK** matching the backend's `global.json` (currently 10.0.401 or a compatible 10.0.4xx patch). The runtime alone is insufficient for source builds. NuGet access is required for the first restore. To avoid SDK installation, use a prebuilt package below.
+**Source prerequisites:** Git and the **.NET SDK** matching the backend's `global.json` (currently 10.0.401 or a compatible 10.0.4xx patch). The runtime alone is insufficient for source builds. NuGet access is required for the first restore. A [prebuilt backend](#use-a-prebuilt-backend-instead-of-installing-the-net-sdk) is an optional alternative.
 
 From a directory where you want a separate backend checkout, on macOS/Linux:
 
@@ -54,7 +39,7 @@ cd taskpilot-api
 dotnet run --project src/TaskPilot.Api --urls http://127.0.0.1:5087
 ```
 
-These commands were checked against the current project path, target framework, controller contracts, and startup initializer. They were not executed against a live server during this Android change. `dotnet run` restores/builds the project as needed. The backend applies pending SQLite migrations automatically before accepting requests, in both source and packaged modes. No EF Core migration command or separate database server is required. Do not reset a developer database if initialization fails; follow the backend README's troubleshooting.
+`dotnet run` restores/builds the project as needed. The backend applies pending SQLite migrations automatically before accepting requests, in both source and packaged modes. No EF Core migration command or separate database server is required. Do not reset a developer database if initialization fails; follow the backend README's troubleshooting.
 
 On Windows, use the same three commands in PowerShell with the matching .NET SDK. For optional diagnostics use `curl.exe` rather than PowerShell's `curl` alias. The commands require no bash environment-variable syntax. The source process creates/uses its configured SQLite database; see the backend README for paths and overrides.
 
@@ -65,36 +50,6 @@ curl http://127.0.0.1:5087/api/health
 ```
 
 The documented response is HTTP 200 with `{"status":"ok"}`. The Android connection check also validates GET `/api/tasks`, including its task schema, so an unrelated HTTP success page is rejected. Verification is contract checking, not cryptographic server authentication; this demo has no authentication.
-
-### Use a prebuilt backend instead of installing the .NET SDK
-
-The existing [TaskPilot API distribution guide](https://github.com/gurhangure/taskpilot-api#download-and-run-a-self-contained-distribution) documents self-contained console packages. Open [TaskPilot API → Actions → CI](https://github.com/gurhangure/taskpilot-api/actions/workflows/ci.yml), choose a successful main run with the matching **Package and verify** job, and download its artifact after signing in:
-
-| Computer | Artifact | Archive inside the artifact ZIP |
-| --- | --- | --- |
-| Windows x64 | `taskpilot-api-win-x64` | `taskpilot-api-win-x64.zip` |
-| macOS Apple Silicon | `taskpilot-api-osx-arm64` | `taskpilot-api-osx-arm64.tar.gz` |
-| macOS Intel | `taskpilot-api-osx-x64` | `taskpilot-api-osx-x64.tar.gz` |
-| Linux x64 (supported glibc system) | `taskpilot-api-linux-x64` | `taskpilot-api-linux-x64.tar.gz` |
-
-Extract the downloaded artifact ZIP, then extract the archive inside it. Keep all extracted files together, including `appsettings.json`. These are console applications, not installers. Platform artifacts expire after **30 days** and are distributed through Actions, not published GitHub Releases. The packages include .NET and SQLite support; no .NET SDK/runtime or separate database server is required. Linux still needs the native OS libraries listed in the backend guide.
-
-From the fully extracted package directory on Windows (PowerShell):
-
-```powershell
-.\TaskPilot.Api.exe --urls http://127.0.0.1:5087
-```
-
-From the fully extracted package directory on macOS or Linux:
-
-```sh
-chmod u+x TaskPilot.Api
-./TaskPilot.Api --urls http://127.0.0.1:5087
-```
-
-Use the package matching your computer's architecture. These executables are unsigned; macOS packages are not notarized. Follow the backend guide and your OS/organization policy if execution is blocked; do not disable system protections. Keep the terminal running and stop with Ctrl+C. The commands explicitly choose port **5087** to match the Android emulator suggestion; other backend examples may use 5080.
-
-Packaged startup creates its per-user data directory and initializes/migrates SQLite automatically while retaining existing data. Source startup also applies migrations automatically. No EF CLI or manual database creation is needed to evaluate either mode. These instructions were checked against the backend README, workflow, SDK file, and startup code; the executables were not run as part of this Android change.
 
 ## Connect Android to the backend
 
@@ -136,47 +91,21 @@ Matching ignores case and surrounding query whitespace. Unicode simple case matc
 
 The query and filter survive refresh, task mutations, form navigation, and Activity recreation through the retained ViewModel. They are not saved across process death. Changed tasks immediately enter or leave the results after server confirmation. **No matching tasks** means that tasks exist but none match both controls; try another query, change the filter, or clear search. **No tasks yet** means the server collection is empty. Search only covers the latest loaded collection; refresh explicitly to retrieve changes from other clients.
 
-## HTTP policy and optional development configuration
-
-Both debug and release builds retain normal HTTPS certificate/hostname validation and block cleartext by default. They include one deliberate demo exception: exact host **10.0.2.2**, without subdomains. This lets an emulator user configure the local backend in-app without rebuilding. The user must acknowledge the unencrypted-HTTP warning before Settings sends HTTP requests. It is never used automatically on an emulator or physical device.
-
-HTTP has no encryption or server authentication. Anyone with access to the network/backend can potentially observe or modify demo tasks. Use disposable data on a trusted network. No credentials, API keys, passwords, tokens, URL queries, fragments, or embedded user information are accepted or stored. Do not expose the unauthenticated backend to the public internet or bypass certificate validation.
-
-| Mode | HTTPS | Emulator HTTP `10.0.2.2` | Other private-LAN HTTP |
-| --- | --- | --- | --- |
-| Default debug APK | Normal trust validation | Explicit in-app choice and acknowledgement | Blocked |
-| Release build | Normal trust validation | Explicit, documented demo exception and acknowledgement | Blocked |
-| Custom debug APK | Normal trust validation | Same exception | One exact private IPv4 host selected at build time; no subdomains |
-
-The distributed demo does not include a custom private-LAN HTTP exception. Optional custom debug builds below are for developers and do not change the stock APK. Existing non-secret build properties remain supported for development and automated fixtures, but are optional. **Saved user settings always win over a build fallback**. A build fallback is not written to DataStore until the user saves it.
-
-```sh
-# Optional emulator fallback; unnecessary for normal in-app setup.
-./gradlew :app:assembleDebug \
-  -Ptaskpilot.debugHttpHost=10.0.2.2 \
-  -Ptaskpilot.apiBaseUrl=http://10.0.2.2:5087/
-
-# Optional custom debug build: replace HOST_LAN_IP with an actual private IPv4 address.
-./gradlew :app:assembleDebug \
-  -Ptaskpilot.debugHttpHost=HOST_LAN_IP \
-  -Ptaskpilot.apiBaseUrl=http://HOST_LAN_IP:5087/
-```
-
-The custom debug policy accepts RFC1918 private IPv4 addresses or `127.0.0.1`, and permits cleartext only for that exact host plus the emulator exception. The exception covers ports on that host; the URL chooses the actual port. Such a physical-device debug setup also needs the backend explicitly listening on that private address, the device on a reachable trusted network, and narrow firewall access. No host binding, firewall, or backend changes are made by this Android app. Release builds ignore the custom debug-host exception. For HTTPS, an optional `-Ptaskpilot.apiBaseUrl=https://server.example/` fallback is supported. Build-property values are embedded in the APK and must never contain secrets.
-
 ## Architecture and data flow
 
 The app follows MVVM + Repository + unidirectional data flow with constructor injection, coroutines, and immutable StateFlow snapshots. Connection Settings uses saveable Activity-level navigation. The Home ViewModel owns the shared task form, delete confirmation, and mutation state, with native Back handling. No navigation framework is introduced.
 
+Paths below are relative to `app/src/main/java/com/gurhangure/taskpilot/`:
+
 ```text
-MainActivity                         Screen navigation and lifecycle-aware state collection
+MainActivity.kt                      Screen navigation and lifecycle-aware state collection
 feature/home/                        Task list, shared task editor, confirmed mutations, counts, filters
 feature/connection/                  Editable URL, consent, save/test actions, verification feedback
-TaskPilotApplication                 One process-scoped HTTP factory and one DataStore instance
- data/settings/                      EndpointSettings contract and Preferences DataStore adapter
- data/repository/                    Active/persistent connection selection and task operations
- data/remote/                        URL policy, Retrofit routes/DTOs, strict JSON, shared OkHttp
- data/model/                         Task snapshots, validation, and typed errors/results
+TaskPilotApplication.kt              One process-scoped HTTP factory and one DataStore instance
+data/settings/                      EndpointSettings contract and Preferences DataStore adapter
+data/repository/                    Active/persistent connection selection and task operations
+data/remote/                        URL policy, Retrofit routes/DTOs, strict JSON, shared OkHttp
+data/model/                         Task snapshots, validation, and typed errors/results
 ui/theme/ and ui/components/          Shared dark design and error guidance
 ```
 
@@ -209,21 +138,19 @@ Timeouts remain 10 seconds to connect, 15 seconds to read/write, and 30 seconds 
 | Preferences DataStore | 1.1.7 |
 | JUnit / AndroidX JUnit / Espresso | 4.13.2 / 1.1.5 / 3.5.1 |
 
-Versions are centralized in `gradle/libs.versions.toml`. DataStore is the only new library family for Settings. Its published metadata supports the existing Kotlin/SDK baseline; unrelated toolchain versions are preserved. Gradle may resolve higher compatible transitive AndroidX/coroutine versions. Follow [TASKPILOT_DESIGN_SYSTEM.md](TASKPILOT_DESIGN_SYSTEM.md); dark-only, no dynamic theme switching.
+Versions are centralized in `gradle/libs.versions.toml`. Gradle may resolve higher compatible transitive AndroidX/coroutine versions. Follow [TASKPILOT_DESIGN_SYSTEM.md](TASKPILOT_DESIGN_SYSTEM.md); dark-only, no dynamic theme switching.
 
 ```sh
 ./gradlew :app:assembleDebug
 ```
 
-Use `gradlew.bat` on Windows. The installable debug-signed APK is generated at `app/build/outputs/apk/debug/app-debug.apk`. No release keystore or store publishing is configured. Android Studio manages the ignored local SDK path. No local build or automated test execution is claimed for this increment.
+Use `gradlew.bat` on Windows. The installable debug-signed APK is generated at `app/build/outputs/apk/debug/app-debug.apk`. No release keystore or store publishing is configured. Android Studio manages the ignored local SDK path.
 
-## GitHub Actions and APK artifacts
+## Testing and GitHub Actions
 
 [Android CI](https://github.com/gurhangure/taskpilot-android/actions/workflows/android.yml) runs JVM unit/integration tests, Android Lint, debug APK compilation, and separate API 35 emulator component and E2E suites. The existing test/build steps retain caching, timeouts, and read-only repository permissions. A dependent **Verified debug/demo APK** job runs only after all of them succeed, for pushes or manual runs on main in the designated repository. Pull requests and other branches never publish the demo. JVM tests include MockWebServer and temporary-file DataStore integration tests; they require neither a developer backend nor a real database. Automated tests are authored for CI and were not run locally.
 
-The demo job checks out the same commit, reassembles the standard debug variant without endpoint/property overrides, verifies its APK signature with Android Build Tools `apksigner`, and uploads only `taskpilot-android-debug-demo-apk`. Rebuilding after the gates avoids uploading an intermediate APK before emulator results are known. No new signing credentials, build variant, store publishing, or GitHub Release is introduced. Follow [Download and install](#download-and-install-the-demo-apk) for the exact ZIP/APK names. APK retention is 14 days; test reports remain available for 7 days. CI for this increment is pending/unverified.
-
-A [verified earlier Task List build](https://github.com/gurhangure/taskpilot-android/actions/runs/40017734094) has a [debug APK artifact](https://github.com/gurhangure/taskpilot-android/actions/runs/40017734094/artifacts/12528549916). Its run reported success when inspected, but it predates Connection Settings and does **not** provide the onboarding described here. Do not use that older APK to evaluate this increment; use source or a subsequent verified artifact containing Settings. Artifacts expire; no permanent release/download link is published.
+The optional [demo APK job](#download-and-install-the-demo-apk) rebuilds the standard debug variant after validation, checks its signature with `apksigner`, and retains the artifact for 14 days. Test reports are retained for 7 days. Consult Actions for the result of the commit being reviewed; no current CI success is implied here.
 
 | Level | Coverage |
 | --- | --- |
@@ -234,12 +161,88 @@ A [verified earlier Task List build](https://github.com/gurhangure/taskpilot-and
 
 Live API integration, physical devices, and API 26/36 runtime coverage remain unverified. The CRUD E2E journey injects a controlled repository into the same app composition; real HTTP contracts are covered separately by MockWebServer integration tests. Existing repository and task-list tests remain enabled.
 
+## HTTP policy and optional development configuration
+
+Both debug and release builds retain normal HTTPS certificate/hostname validation and block cleartext by default. They include one deliberate demo exception: exact host **10.0.2.2**, without subdomains. This lets an emulator user configure the local backend in-app without rebuilding. The user must acknowledge the unencrypted-HTTP warning before Settings sends HTTP requests. It is never used automatically on an emulator or physical device.
+
+HTTP has no encryption or server authentication. Anyone with access to the network/backend can potentially observe or modify demo tasks. Use disposable data on a trusted network. No credentials, API keys, passwords, tokens, URL queries, fragments, or embedded user information are accepted or stored. Do not expose the unauthenticated backend to the public internet or bypass certificate validation.
+
+| Mode | HTTPS | Emulator HTTP `10.0.2.2` | Other private-LAN HTTP |
+| --- | --- | --- | --- |
+| Default debug APK | Normal trust validation | Explicit in-app choice and acknowledgement | Blocked |
+| Release build | Normal trust validation | Explicit, documented demo exception and acknowledgement | Blocked |
+| Custom debug APK | Normal trust validation | Same exception | One exact private IPv4 host selected at build time; no subdomains |
+
+The distributed demo does not include a custom private-LAN HTTP exception. Optional custom debug builds below are for developers and do not change the stock APK. Existing non-secret build properties remain supported for development and automated fixtures, but are optional. **Saved user settings always win over a build fallback**. A build fallback is not written to DataStore until the user saves it.
+
+```sh
+# Optional emulator fallback; unnecessary for normal in-app setup.
+./gradlew :app:assembleDebug \
+  -Ptaskpilot.debugHttpHost=10.0.2.2 \
+  -Ptaskpilot.apiBaseUrl=http://10.0.2.2:5087/
+
+# Optional custom debug build: replace HOST_LAN_IP with an actual private IPv4 address.
+./gradlew :app:assembleDebug \
+  -Ptaskpilot.debugHttpHost=HOST_LAN_IP \
+  -Ptaskpilot.apiBaseUrl=http://HOST_LAN_IP:5087/
+```
+
+The custom debug policy accepts RFC1918 private IPv4 addresses or `127.0.0.1`, and permits cleartext only for that exact host plus the emulator exception. The exception covers ports on that host; the URL chooses the actual port. Such a physical-device debug setup also needs the backend explicitly listening on that private address, the device on a reachable trusted network, and narrow firewall access. No host binding, firewall, or backend changes are made by this Android app. Release builds ignore the custom debug-host exception. For HTTPS, an optional `-Ptaskpilot.apiBaseUrl=https://server.example/` fallback is supported. Build-property values are embedded in the APK and must never contain secrets.
+
+## Optional: APK installation and distribution
+
+### Download and install the demo APK
+
+1. Sign in to GitHub and open [TaskPilot Android → Actions → Android CI](https://github.com/gurhangure/taskpilot-android/actions/workflows/android.yml).
+2. Select a **successful run on main** containing the **Verified debug/demo APK** job. Confirm that JVM/lint, component, E2E, and demo jobs succeeded for the commit you want.
+3. Scroll to **Artifacts** at the bottom of the run summary and download **taskpilot-android-debug-demo-apk**. GitHub sign-in is required to download Actions artifacts, even from this public repository.
+4. Unzip the downloaded artifact. Inside is **taskpilot-android-debug-demo.apk**. Android installs the APK, not the ZIP.
+5. Transfer the APK to an Android 8.0/API 26 or newer device, or download it there directly and unzip it. Open the APK with the device's Files app or download manager and select **Install**.
+6. If Android prompts you to **Allow from this source** / **Install unknown apps**, authorize only the specific installer you are using. Organization/device policy may block installation; follow that policy. The permission can be revoked after installation.
+7. Open **TaskPilot**, start your backend separately, and follow [Connect Android to the backend](#connect-android-to-the-backend).
+
+This is an **installable, debug-signed demo**, not a production release or an unsigned APK. It is debuggable and uses Android's development signing behavior; no private production keystore or release-signing infrastructure is configured. Hosted runners may generate different debug certificates between builds. If an update reports a conflicting package/signature, record your server URL before uninstalling the previous demo and installing the new one; uninstalling removes local app settings, not tasks stored on the server. The application ID remains `com.gurhangure.taskpilot`.
+
+APK artifacts are retained for **14 days**. Publication requires successful JVM/lint, component, and E2E jobs; failed/cancelled validation jobs prevent it. Pull requests and runs on other branches do not publish the demo artifact. Always select an entirely successful run. If it is missing or expired, choose another successful eligible run or run from source; do not substitute an older APK that lacks the functionality you want. Check the selected commit’s Actions result before downloading. There is no permanent Android release download or automatic GitHub Release publishing.
+
+**Physical-phone limitation:** the stock demo permits HTTPS with normal certificate/hostname validation and only the existing explicit emulator HTTP exception for `10.0.2.2`. Entering an arbitrary private-LAN HTTP URL does not authorize cleartext traffic. The [loopback-only HTTP backend command](#backend-setup) is intended for emulator use and does not configure HTTPS for a phone.
+
+### Use a prebuilt backend instead of installing the .NET SDK
+
+The existing [TaskPilot API distribution guide](https://github.com/gurhangure/taskpilot-api#download-and-run-a-self-contained-distribution) documents self-contained console packages. Open [TaskPilot API → Actions → CI](https://github.com/gurhangure/taskpilot-api/actions/workflows/ci.yml), choose a successful main run with the matching **Package and verify** job, and download its artifact after signing in:
+
+| Computer | Artifact | Archive inside the artifact ZIP |
+| --- | --- | --- |
+| Windows x64 | `taskpilot-api-win-x64` | `taskpilot-api-win-x64.zip` |
+| macOS Apple Silicon | `taskpilot-api-osx-arm64` | `taskpilot-api-osx-arm64.tar.gz` |
+| macOS Intel | `taskpilot-api-osx-x64` | `taskpilot-api-osx-x64.tar.gz` |
+| Linux x64 (supported glibc system) | `taskpilot-api-linux-x64` | `taskpilot-api-linux-x64.tar.gz` |
+
+Extract the downloaded artifact ZIP, then extract the archive inside it. Keep all extracted files together, including `appsettings.json`. These are console applications, not installers. Platform artifacts expire after **30 days** and are distributed through Actions, not published GitHub Releases. The packages include .NET and SQLite support; no .NET SDK/runtime or separate database server is required. Linux still needs the native OS libraries listed in the backend guide.
+
+From the fully extracted package directory on Windows (PowerShell):
+
+```powershell
+.\TaskPilot.Api.exe --urls http://127.0.0.1:5087
+```
+
+From the fully extracted package directory on macOS or Linux:
+
+```sh
+chmod u+x TaskPilot.Api
+./TaskPilot.Api --urls http://127.0.0.1:5087
+```
+
+Use the package matching your computer's architecture. These executables are unsigned; macOS packages are not notarized. Follow the backend guide and your OS/organization policy if execution is blocked; do not disable system protections. Keep the terminal running and stop with Ctrl+C. The commands explicitly choose port **5087** to match the Android emulator suggestion; other backend examples may use 5080.
+
+Packaged startup creates its per-user data directory and initializes/migrates SQLite automatically while retaining existing data. Source startup also applies migrations automatically. No EF CLI or manual database creation is needed to evaluate either mode.
+
 ## Troubleshooting
 
 | Symptom | Action |
 | --- | --- |
 | APK artifact is missing or download asks for sign-in | Sign in, choose an eligible successful main run with the demo job, and check its 14-day retention. Failed/cancelled validation jobs, PRs, and other branches do not publish it |
-| Android will not install the download | Unzip first and open the APK on Android 8.0/API 26+. Check free space, the specific installer permission, and device policy. For a signature conflict, see the debug-signing note above |
+| Android will not install the download | Unzip first and open the APK on Android 8.0/API 26+. Check free space, the specific installer permission, and device policy. For a signature conflict, see the [debug-signing note](#download-and-install-the-demo-apk) |
 | Android SDK missing / Gradle Sync fails | Install Platform 36 and Build Tools 36.0.0 in SDK Manager, accept licenses, use JDK 25 and compatible Android Studio, and check repository/dependency network access; do not copy another machine’s SDK paths |
 | Address or port is wrong | Keep the API running on the exact port in Settings. Use 5087 with the commands above; emulator host mapping and physical-phone HTTPS are different |
 | Save is rejected | Check the title/description field messages and limits; input is retained for correction |
