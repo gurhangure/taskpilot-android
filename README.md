@@ -4,41 +4,47 @@ Native Kotlin/Jetpack Compose client for the [TaskPilot API](https://github.com/
 
 ## Quick Start
 
-**Android Studio users:** install a stable Android Studio version supporting AGP 9.4, JDK 25, Android SDK Platform 36, and Build Tools 36.0.0. Git and network access are needed for the first dependency sync. Accept SDK licenses yourself.
+1. **Install TaskPilot:** [download the demo APK](#download-and-install-the-demo-apk), or [run from source in Android Studio](#run-from-source).
+2. **Start your server:** use the [backend source commands or a prebuilt backend package](#backend-setup) on your computer. Android does not include a server.
+3. **Connect in the app:** choose **Connect to Server**. On an Android Emulator, use `http://10.0.2.2:5087/` when the API is listening locally on port 5087. A physical phone needs a reachable HTTPS endpoint with a trusted certificate. Choose **Test Connection**, then **Save & Connect**, and return to the Task List.
 
-1. Clone `https://github.com/gurhangure/taskpilot-android.git`.
-2. In Android Studio choose **Open** and select the repository root. Allow **Gradle Sync** to finish.
-3. Select an API 26+ emulator/device and **Run app**. No source, Gradle, XML, or build-property edits are required.
-4. On first launch choose **Connect to Server**. Start the backend separately using the commands below.
-5. Enter the server URL. On an emulator, **Use emulator address** suggests `http://10.0.2.2:5087/`; it never selects a server automatically. The secondary emulator hint applies only when the API is running on your computer on port 5087; otherwise enter your own server URL. Physical devices should use the general HTTPS guidance. Review and acknowledge the HTTP warning when using HTTP.
-6. Choose **Save & Connect**, then **Back to Task List**. A successful verification displays **Connected**; the list loads automatically. An empty server displays **No tasks yet**. Other outcomes show connection or API recovery guidance.
+A fresh installation has no server selected. Saved settings are restored on later launches. Standard Android Studio operation and the distributed demo require no Kotlin, Gradle, XML, or local-property edits.
 
-The server URL is restored on later launches. Use the **Connection Settings** icon above the list to edit it. **Test Connection** verifies the draft without saving or selecting it. **Save & Connect** remembers a valid address even if its server is temporarily unavailable. Failed validation or disk writes preserve the previous saved choice. A failed connection never deletes settings.
+## Download and install the demo APK
 
-**APK users:** use the build-artifact instructions below when an APK for the desired commit is available. Download/extract `taskpilot-debug-apk`, transfer `app-debug.apk` to the device, allow installation from that specific installer if Android requests it, and open TaskPilot. The same in-app setup applies. A physical device needs a supported HTTPS server; the emulator suggestion does not refer to the computer from a phone.
+1. Sign in to GitHub and open [TaskPilot Android → Actions → Android CI](https://github.com/gurhangure/taskpilot-android/actions/workflows/android.yml).
+2. Select a **successful run on main** containing the **Verified debug/demo APK** job. Confirm that JVM/lint, component, E2E, and demo jobs succeeded for the commit you want.
+3. Scroll to **Artifacts** at the bottom of the run summary and download **taskpilot-android-debug-demo-apk**. GitHub sign-in is required to download Actions artifacts, even from this public repository.
+4. Unzip the downloaded artifact. Inside is **taskpilot-android-debug-demo.apk**. Android installs the APK, not the ZIP.
+5. Transfer the APK to an Android 8.0/API 26 or newer device, or download it there directly and unzip it. Open the APK with the device's Files app or download manager and select **Install**.
+6. If Android prompts you to **Allow from this source** / **Install unknown apps**, authorize only the specific installer you are using. Organization/device policy may block installation; follow that policy. The permission can be revoked after installation.
+7. Open **TaskPilot**, start your backend separately, and follow [Connect Android to the backend](#connect-android-to-the-backend).
 
-## Managing tasks
+This is an **installable, debug-signed demo**, not a production release or an unsigned APK. It is debuggable and uses Android's development signing behavior; no private production keystore or release-signing infrastructure is configured. Hosted runners may generate different debug certificates between builds. If an update reports a conflicting package/signature, record your server URL before uninstalling the previous demo and installing the new one; uninstalling removes local app settings, not tasks stored on the server. The application ID remains `com.gurhangure.taskpilot`.
 
-- Select the **+** floating action button (**Create Task** for accessibility) at the bottom-right to open the shared task form. It hides while the software keyboard is visible and returns when it closes; its reserved bottom area keeps card controls unobstructed. Enter a nonblank title (up to 200 UTF-16 code units) and an optional description (up to 2,000). Content is preserved without trimming; an empty description is sent as null. Choose **Save** or **Cancel**.
-- Choose the pencil icon (**Edit task**) on a card to change its title or description. The task ID, creation time, and completion status are preserved.
-- Use a card’s completion checkbox to complete an active task or reopen a completed one. The checkbox changes only after the server confirms the update.
-- Choose the trash icon (**Delete task**) on a card, or **Delete** in its edit form, then confirm the dialog identifying that task. **Cancel** leaves it intact. There is no undo.
+APK artifacts are retained for **14 days**. Publication requires successful JVM/lint, component, and E2E jobs; failed/cancelled validation jobs prevent it. Pull requests and runs on other branches do not publish the demo artifact. Always select an entirely successful run. If it is missing or expired, choose another successful eligible run or run from source; do not substitute an older APK that lacks the functionality you want. This distribution setup is pending/unverified until its own CI succeeds. There is no permanent Android release download or automatic GitHub Release publishing.
 
-Writes require a configured server. One mutation runs at a time; affected controls show progress and reject duplicates while filters and scrolling remain available. Errors retain form input or confirmed tasks for an explicit retry. Successful writes close the form/dialog, apply the confirmed response, and refresh the list without resetting the selected filter. A newly completed task disappears from the Active filter; a newly created task may be hidden by Completed. If the follow-up refresh fails, the confirmed change stays visible with a refresh warning and Retry action.
+**Physical-phone limitation:** the stock demo permits HTTPS with normal certificate/hostname validation and only the existing explicit emulator HTTP exception for `10.0.2.2`. Entering an arbitrary private-LAN HTTP URL does not authorize cleartext traffic. The loopback-only HTTP backend command below is intended for emulator use and does not configure HTTPS for a phone.
 
-Changing the server cancels pending work, closes old drafts/confirmation, and rejects late responses from the previous repository. Cancellation cannot guarantee that a write already received by a server was rolled back; check that server’s list before repeating an uncertain operation. No writes are queued offline.
+## Run from source
 
-## Searching tasks
+Install Git and an Android Studio version compatible with **AGP 9.4.1**, **JDK 25**, Android SDK Platform **36**, and Build Tools **36.0.0**. Use Android Studio's SDK Manager to install missing SDK components and accept their licenses yourself. Network access is needed for the first Gradle dependency sync.
 
-Use **Search tasks** to match a substring in the title or optional description of currently loaded tasks. Results update immediately without network calls. Search combines with **All**, **Active**, or **Completed**; counts always describe the entire loaded collection. The search field includes a search icon; its **×** icon (**Clear search**) removes only the query. The Search keyboard action dismisses the keyboard without submitting a request.
+```bash
+git clone https://github.com/gurhangure/taskpilot-android.git
+cd taskpilot-android
+```
 
-Matching ignores case and surrounding query whitespace. Unicode simple case matching treats Turkish **I**, **i**, **İ**, and **ı** alike, independently of the device language; this is intentionally broader than Turkish dictionary casing. Accents remain significant. Search does not perform transliteration, canonical Unicode normalization, multi-character case folding (such as **ß** to **ss**), fuzzy matching, or word tokenization.
+1. In Android Studio choose **Open** and select this repository root, containing `settings.gradle.kts`.
+2. Allow **Gradle Sync** to finish. Use JDK 25 for the Gradle daemon; SDK/toolchain paths are managed by Android Studio and the existing Gradle configuration.
+3. In Device Manager create/start an API 26+ emulator, or select a connected supported device. CI uses an API 35 emulator.
+4. Select the **app** run configuration and press **Run ▶**. A fresh install shows **Connect to Server**; configure it inside the app.
 
-The query and filter survive refresh, task mutations, form navigation, and Activity recreation through the retained ViewModel. They are not saved across process death. Changed tasks immediately enter or leave the results after server confirmation. **No matching tasks** means that tasks exist but none match both controls; try another query, change the filter, or clear search. **No tasks yet** means the server collection is empty. Search only covers the latest loaded collection; refresh explicitly to retrieve changes from other clients.
+No source-file, Gradle-property, or manually edited `local.properties` changes are required. The same install/configure flow applies to source and APK users. Optional custom development build properties are documented separately below and are not needed for normal operation.
 
 ## Backend setup
 
-Prerequisites: Git and the **.NET SDK** matching the backend's `global.json` (currently 10.0.401 or a compatible 10.0.4xx patch). The runtime alone is insufficient. NuGet access is required for the first restore.
+**Source prerequisites:** Git and the **.NET SDK** matching the backend's `global.json` (currently 10.0.401 or a compatible 10.0.4xx patch). The runtime alone is insufficient for source builds. NuGet access is required for the first restore. To avoid SDK installation, use a prebuilt package below.
 
 From a directory where you want a separate backend checkout, on macOS/Linux:
 
@@ -60,13 +66,75 @@ curl http://127.0.0.1:5087/api/health
 
 The documented response is HTTP 200 with `{"status":"ok"}`. The Android connection check also validates GET `/api/tasks`, including its task schema, so an unrelated HTTP success page is rejected. Verification is contract checking, not cryptographic server authentication; this demo has no authentication.
 
-## Emulator and physical-device connections
+### Use a prebuilt backend instead of installing the .NET SDK
+
+The existing [TaskPilot API distribution guide](https://github.com/gurhangure/taskpilot-api#download-and-run-a-self-contained-distribution) documents self-contained console packages. Open [TaskPilot API → Actions → CI](https://github.com/gurhangure/taskpilot-api/actions/workflows/ci.yml), choose a successful main run with the matching **Package and verify** job, and download its artifact after signing in:
+
+| Computer | Artifact | Archive inside the artifact ZIP |
+| --- | --- | --- |
+| Windows x64 | `taskpilot-api-win-x64` | `taskpilot-api-win-x64.zip` |
+| macOS Apple Silicon | `taskpilot-api-osx-arm64` | `taskpilot-api-osx-arm64.tar.gz` |
+| macOS Intel | `taskpilot-api-osx-x64` | `taskpilot-api-osx-x64.tar.gz` |
+| Linux x64 (supported glibc system) | `taskpilot-api-linux-x64` | `taskpilot-api-linux-x64.tar.gz` |
+
+Extract the downloaded artifact ZIP, then extract the archive inside it. Keep all extracted files together, including `appsettings.json`. These are console applications, not installers. Platform artifacts expire after **30 days** and are distributed through Actions, not published GitHub Releases. The packages include .NET and SQLite support; no .NET SDK/runtime or separate database server is required. Linux still needs the native OS libraries listed in the backend guide.
+
+From the fully extracted package directory on Windows (PowerShell):
+
+```powershell
+.\TaskPilot.Api.exe --urls http://127.0.0.1:5087
+```
+
+From the fully extracted package directory on macOS or Linux:
+
+```sh
+chmod u+x TaskPilot.Api
+./TaskPilot.Api --urls http://127.0.0.1:5087
+```
+
+Use the package matching your computer's architecture. These executables are unsigned; macOS packages are not notarized. Follow the backend guide and your OS/organization policy if execution is blocked; do not disable system protections. Keep the terminal running and stop with Ctrl+C. The commands explicitly choose port **5087** to match the Android emulator suggestion; other backend examples may use 5080.
+
+Packaged startup creates its per-user data directory and initializes/migrates SQLite automatically while retaining existing data. Source startup also applies migrations automatically. No EF CLI or manual database creation is needed to evaluate either mode. These instructions were checked against the backend README, workflow, SDK file, and startup code; the executables were not run as part of this Android change.
+
+## Connect Android to the backend
+
+1. Keep the API running and reachable. Android can launch before the server is available, but connection verification and task requests need a working server.
+2. On first launch choose **Connect to Server**; later use the header's **Connection Settings** icon.
+3. Enter a supported server URL. The secondary **Use emulator address** action fills in `http://10.0.2.2:5087/` only after you choose it. It never automatically selects or connects to a server. Otherwise enter your own address.
+4. If using permitted local HTTP, review and acknowledge its unencrypted-traffic warning. Prefer HTTPS.
+5. Choose **Test Connection** to check the draft without saving or selecting it. The probe validates both GET `/api/health` and GET `/api/tasks`.
+6. Choose **Save & Connect** to persist and select the endpoint, then **Back to Task List**. Successful connection changes load tasks automatically. Refresh and Retry remain available.
+
+The normalized URL is stored with Preferences DataStore and restored on future launches. Saved settings take precedence over any optional build fallback. **Save & Connect** remembers a valid address even if its server is temporarily unavailable. Failed validation/disk writes preserve the previous saved choice; connection failures never delete it.
+
+### Emulator versus physical phone
 
 - **Android emulator:** explicitly select `http://10.0.2.2:5087/` in Settings. `10.0.2.2` is the emulator alias for the computer's loopback listener. The local backend must be running on port 5087.
 - **Physical device:** enter an HTTPS endpoint with a certificate trusted by Android and valid for its hostname. If hosted on your computer, it needs a listener reachable on the trusted LAN, suitable HTTPS configuration, device/host connectivity, and narrowly scoped firewall permission. The local HTTP-only command above does not provide that HTTPS endpoint. Changing `http` to `https` alone does not configure TLS.
 - **Device `localhost`/`127.0.0.1`:** refers to the Android device itself, not the computer. Never use a wildcard binding such as `0.0.0.0` as the client address.
 
 Stock APKs cannot add arbitrary private-LAN HTTP exceptions at runtime. Android network-security domain exceptions are packaged resources, not editable URL preferences. Entering an arbitrary LAN IP in Settings therefore does not authorize cleartext to that IP. Use supported HTTPS instead. Physical-device connectivity, including the optional custom debug method below, has not been verified.
+
+A server listening only on `127.0.0.1` accepts connections from its own computer. The Android Emulator has the special `10.0.2.2` host-loopback mapping; a physical phone does not. A phone therefore needs a separately configured, reachable HTTPS listener with a trusted certificate. The source and prebuilt commands above deliberately do not expose a LAN or public server. Starting the backend, changing the URL scheme in the app, or changing the phone's settings alone does not supply that HTTPS setup.
+
+## Managing tasks
+
+- Select the **+** floating action button (**Create Task** for accessibility) at the bottom-right to open the shared task form. It hides while the software keyboard is visible and returns when it closes; its reserved bottom area keeps card controls unobstructed. Enter a nonblank title (up to 200 UTF-16 code units) and an optional description (up to 2,000). Content is preserved without trimming; an empty description is sent as null. Choose **Save** or **Cancel**.
+- Choose the pencil icon (**Edit task**) on a card to change its title or description. The task ID, creation time, and completion status are preserved.
+- Use a card’s completion checkbox to complete an active task or reopen a completed one. The checkbox changes only after the server confirms the update.
+- Choose the trash icon (**Delete task**) on a card, or **Delete** in its edit form, then confirm the dialog identifying that task. **Cancel** leaves it intact. There is no undo.
+
+Writes require a configured server. One mutation runs at a time; affected controls show progress and reject duplicates while filters and scrolling remain available. Errors retain form input or confirmed tasks for an explicit retry. Successful writes close the form/dialog, apply the confirmed response, and refresh the list without resetting the selected filter. A newly completed task disappears from the Active filter; a newly created task may be hidden by Completed. If the follow-up refresh fails, the confirmed change stays visible with a refresh warning and Retry action.
+
+Changing the server cancels pending work, closes old drafts/confirmation, and rejects late responses from the previous repository. Cancellation cannot guarantee that a write already received by a server was rolled back; check that server’s list before repeating an uncertain operation. No writes are queued offline.
+
+## Searching tasks
+
+Use **Search tasks** to match a substring in the title or optional description of currently loaded tasks. Results update immediately without network calls. Search combines with **All**, **Active**, or **Completed**; counts always describe the entire loaded collection. The search field includes a search icon; its **×** icon (**Clear search**) removes only the query. The Search keyboard action dismisses the keyboard without submitting a request.
+
+Matching ignores case and surrounding query whitespace. Unicode simple case matching treats Turkish **I**, **i**, **İ**, and **ı** alike, independently of the device language; this is intentionally broader than Turkish dictionary casing. Accents remain significant. Search does not perform transliteration, canonical Unicode normalization, multi-character case folding (such as **ß** to **ss**), fuzzy matching, or word tokenization.
+
+The query and filter survive refresh, task mutations, form navigation, and Activity recreation through the retained ViewModel. They are not saved across process death. Changed tasks immediately enter or leave the results after server confirmation. **No matching tasks** means that tasks exist but none match both controls; try another query, change the filter, or clear search. **No tasks yet** means the server collection is empty. Search only covers the latest loaded collection; refresh explicitly to retrieve changes from other clients.
 
 ## HTTP policy and optional development configuration
 
@@ -80,7 +148,7 @@ HTTP has no encryption or server authentication. Anyone with access to the netwo
 | Release build | Normal trust validation | Explicit, documented demo exception and acknowledgement | Blocked |
 | Custom debug APK | Normal trust validation | Same exception | One exact private IPv4 host selected at build time; no subdomains |
 
-Existing non-secret build properties remain supported for development and automated fixtures, but are optional. **Saved user settings always win over a build fallback**. A build fallback is not written to DataStore until the user saves it.
+The distributed demo does not include a custom private-LAN HTTP exception. Optional custom debug builds below are for developers and do not change the stock APK. Existing non-secret build properties remain supported for development and automated fixtures, but are optional. **Saved user settings always win over a build fallback**. A build fallback is not written to DataStore until the user saves it.
 
 ```sh
 # Optional emulator fallback; unnecessary for normal in-app setup.
@@ -151,9 +219,9 @@ Use `gradlew.bat` on Windows. The installable debug-signed APK is generated at `
 
 ## GitHub Actions and APK artifacts
 
-[Android CI](https://github.com/gurhangure/taskpilot-android/actions/workflows/android.yml) runs JVM tests, Android Lint, compilation, debug APK upload, and separate API 35 emulator component and E2E suites. Gradle caching, timeouts, read-only repository permissions, and existing jobs remain intact. JVM tests include MockWebServer and temporary-file DataStore integration tests; they require neither a developer backend nor a real database. Automated tests are authored for CI and were not run locally.
+[Android CI](https://github.com/gurhangure/taskpilot-android/actions/workflows/android.yml) runs JVM unit/integration tests, Android Lint, debug APK compilation, and separate API 35 emulator component and E2E suites. The existing test/build steps retain caching, timeouts, and read-only repository permissions. A dependent **Verified debug/demo APK** job runs only after all of them succeed, for pushes or manual runs on main in the designated repository. Pull requests and other branches never publish the demo. JVM tests include MockWebServer and temporary-file DataStore integration tests; they require neither a developer backend nor a real database. Automated tests are authored for CI and were not run locally.
 
-For the desired commit, open its Actions run and check **all jobs**. When available, download **taskpilot-debug-apk** under **Artifacts**; extract it to find `app-debug.apk`. GitHub sign-in may be required. APK retention is 14 days and reports are retained for 7 days. A build artifact by itself does not prove emulator success. This search and polish increment is pending/unverified until its own CI completes.
+The demo job checks out the same commit, reassembles the standard debug variant without endpoint/property overrides, verifies its APK signature with Android Build Tools `apksigner`, and uploads only `taskpilot-android-debug-demo-apk`. Rebuilding after the gates avoids uploading an intermediate APK before emulator results are known. No new signing credentials, build variant, store publishing, or GitHub Release is introduced. Follow [Download and install](#download-and-install-the-demo-apk) for the exact ZIP/APK names. APK retention is 14 days; test reports remain available for 7 days. CI for this increment is pending/unverified.
 
 A [verified earlier Task List build](https://github.com/gurhangure/taskpilot-android/actions/runs/40017734094) has a [debug APK artifact](https://github.com/gurhangure/taskpilot-android/actions/runs/40017734094/artifacts/12528549916). Its run reported success when inspected, but it predates Connection Settings and does **not** provide the onboarding described here. Do not use that older APK to evaluate this increment; use source or a subsequent verified artifact containing Settings. Artifacts expire; no permanent release/download link is published.
 
@@ -170,6 +238,10 @@ Live API integration, physical devices, and API 26/36 runtime coverage remain un
 
 | Symptom | Action |
 | --- | --- |
+| APK artifact is missing or download asks for sign-in | Sign in, choose an eligible successful main run with the demo job, and check its 14-day retention. Failed/cancelled validation jobs, PRs, and other branches do not publish it |
+| Android will not install the download | Unzip first and open the APK on Android 8.0/API 26+. Check free space, the specific installer permission, and device policy. For a signature conflict, see the debug-signing note above |
+| Android SDK missing / Gradle Sync fails | Install Platform 36 and Build Tools 36.0.0 in SDK Manager, accept licenses, use JDK 25 and compatible Android Studio, and check repository/dependency network access; do not copy another machine’s SDK paths |
+| Address or port is wrong | Keep the API running on the exact port in Settings. Use 5087 with the commands above; emulator host mapping and physical-phone HTTPS are different |
 | Save is rejected | Check the title/description field messages and limits; input is retained for correction |
 | A mutation fails or a task was removed elsewhere | Review the displayed error, cancel if needed, refresh, and retry against the current server; there is no automatic write retry |
 | A saved task is hidden | Check the search query and Active/Completed filter; clear search or choose All. Counts always use all loaded tasks |

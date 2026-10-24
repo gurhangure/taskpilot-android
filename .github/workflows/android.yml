@@ -33,13 +33,6 @@ jobs:
         run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
       - name: Compile, test, and lint
         run: ./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --stacktrace
-      - name: Upload debug APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: taskpilot-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
-          if-no-files-found: error
-          retention-days: 14
       - name: Upload JVM and lint reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -50,6 +43,42 @@ jobs:
             app/build/test-results/
             app/build/reports/lint-results-*
           retention-days: 7
+
+  demo:
+    name: Verified debug/demo APK
+    needs: [build, instrumentation]
+    if: >-
+      github.repository == 'gurhangure/taskpilot-android' &&
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - uses: gradle/actions/setup-gradle@v5
+      - name: Install compilation SDK
+        run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
+      # Rebuild the same revision after all gates, without uploading an intermediate APK before tests pass.
+      - name: Build standard demo without endpoint overrides
+        run: ./gradlew :app:assembleDebug --stacktrace
+      - name: Prepare and verify signed demo APK
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/taskpilot-android-debug-demo.apk
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose app/build/outputs/apk/debug/taskpilot-android-debug-demo.apk
+      - name: Upload installable debug/demo APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: taskpilot-android-debug-demo-apk
+          path: app/build/outputs/apk/debug/taskpilot-android-debug-demo.apk
+          if-no-files-found: error
+          retention-days: 14
 
   instrumentation:
     name: Emulator ${{ matrix.suite }}
