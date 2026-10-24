@@ -37,7 +37,7 @@ class TaskCrudJourneyTest {
         val repository = JourneyRepository()
         val connections = InMemoryConnectionRepository({ repository }).apply { configure("https://fixture.test/") }
         compose.setContent { TaskPilotTheme { TaskPilotContent(connections) } }
-        compose.onNodeWithText("Create Task").performClick()
+        compose.onNodeWithContentDescription("Create Task").performClick()
         compose.onNodeWithText("Title").performTextReplacement("Prepare demo")
         compose.onNodeWithText("Description (optional)").performTextReplacement("Initial notes")
         compose.onNodeWithText("Description (optional)").performImeAction()

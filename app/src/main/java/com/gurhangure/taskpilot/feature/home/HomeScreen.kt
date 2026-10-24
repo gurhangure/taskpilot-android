@@ -12,6 +12,16 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.isImeVisible
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
@@ -26,8 +36,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -37,6 +48,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -54,6 +66,7 @@ import com.gurhangure.taskpilot.ui.theme.TaskPilotSpacing
 import com.gurhangure.taskpilot.ui.theme.TaskPilotTheme
 
 /** Renders list state and forwards actions without accessing repositories or network configuration. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun HomeScreen(
     state: HomeUiState,
@@ -85,20 +98,30 @@ fun HomeScreen(
             onDelete = { draft.original?.let(onRequestDelete) })
         return
     }
+    val showCreate = state.endpointAvailable && !state.isMutating && !WindowInsets.isImeVisible
     Scaffold(
         modifier = modifier.fillMaxSize().imePadding(),
-        floatingActionButton = {
-            if (state.endpointAvailable && !state.isMutating) {
-                FloatingActionButton(onClick = onCreate) { Text(stringResource(R.string.task_create), Modifier.padding(TaskPilotSpacing.Large)) }
+        bottomBar = {
+            if (showCreate) {
+                // A measured bottom bar reserves space, keeping every card above the FAB's touch target.
+                Row(
+                    Modifier.fillMaxWidth()
+                        .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
+                        .padding(TaskPilotSpacing.Large),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    FloatingActionButton(onClick = onCreate) {
+                        Icon(painterResource(R.drawable.ic_add), contentDescription = stringResource(R.string.task_create))
+                    }
+                }
             }
         },
     ) { insets ->
         Box(Modifier.fillMaxSize().padding(insets), contentAlignment = Alignment.TopCenter) {
             LazyColumn(
                 modifier = Modifier.widthIn(max = 640.dp).fillMaxSize(),
-                contentPadding = PaddingValues(start = TaskPilotSpacing.ExtraLarge, end = TaskPilotSpacing.ExtraLarge,
-                    top = TaskPilotSpacing.ExtraLarge, bottom = 112.dp),
-                verticalArrangement = Arrangement.spacedBy(TaskPilotSpacing.Large),
+                contentPadding = PaddingValues(TaskPilotSpacing.Large),
+                verticalArrangement = Arrangement.spacedBy(TaskPilotSpacing.Medium),
             ) {
                 item(key = "header") { TaskListHeader(state.isLoading || state.isMutating, onRefresh, onOpenSettings) }
                 if (state.content != HomeContent.ConnectionRequired) {
@@ -157,14 +180,14 @@ private fun TaskSearchField(query: String, onChanged: (String) -> Unit) {
         value = query, onValueChange = onChanged,
         label = { Text(stringResource(R.string.tasks_search)) },
         placeholder = { Text(stringResource(R.string.tasks_search_hint)) },
+        leadingIcon = { Icon(painterResource(R.drawable.ic_search), contentDescription = null) },
         singleLine = true,
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
         keyboardActions = KeyboardActions(onSearch = { focus.clearFocus() }),
         trailingIcon = {
             if (query.isNotEmpty()) {
-                val clearLabel = stringResource(R.string.tasks_clear_search)
-                TextButton(onClick = { onChanged("") }, modifier = Modifier.semantics { contentDescription = clearLabel }) {
-                    Text(stringResource(R.string.tasks_clear))
+                IconButton(onClick = { onChanged("") }) {
+                    Icon(painterResource(R.drawable.ic_close), contentDescription = stringResource(R.string.tasks_clear_search))
                 }
             }
         },
@@ -172,61 +195,56 @@ private fun TaskSearchField(query: String, onChanged: (String) -> Unit) {
     )
 }
 
-/** Shows product identity and a manual refresh action that disables during an active request. */
-@OptIn(ExperimentalLayoutApi::class)
+/** Keeps branding, compact navigation, and labelled refresh controls accessible at larger text sizes. */
 @Composable
 private fun TaskListHeader(isLoading: Boolean, onRefresh: () -> Unit, onOpenSettings: () -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(TaskPilotSpacing.Small)) {
+    Column(verticalArrangement = Arrangement.spacedBy(TaskPilotSpacing.ExtraSmall)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                stringResource(R.string.app_name), style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.weight(1f).semantics { heading() },
+            )
+            IconButton(onClick = onOpenSettings) {
+                Icon(painterResource(R.drawable.ic_settings), contentDescription = stringResource(R.string.connection_settings))
+            }
+            IconButton(onClick = onRefresh, enabled = !isLoading) {
+                Icon(painterResource(R.drawable.ic_refresh), contentDescription = stringResource(R.string.tasks_refresh))
+            }
+        }
         Text(
-            stringResource(R.string.app_name), style = MaterialTheme.typography.headlineSmall,
-            modifier = Modifier.semantics { heading() },
-        )
-        Text(
-            stringResource(R.string.home_subtitle), style = MaterialTheme.typography.bodyLarge,
+            stringResource(R.string.home_subtitle), style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        FlowRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalArrangement = Arrangement.spacedBy(TaskPilotSpacing.Small),
-        ) {
-            Text(
-                stringResource(R.string.tasks_heading), style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(vertical = TaskPilotSpacing.Medium).semantics { heading() },
-            )
-            OutlinedButton(onClick = onOpenSettings) { Text(stringResource(R.string.connection_settings)) }
-            OutlinedButton(onClick = onRefresh, enabled = !isLoading) { Text(stringResource(R.string.tasks_refresh)) }
-        }
+        Text(stringResource(R.string.tasks_heading), style = MaterialTheme.typography.titleLarge,
+            modifier = Modifier.semantics { heading() })
     }
 }
 
-/** Presents counts from the whole list, allowing metrics to wrap on narrow or large-font layouts. */
-@OptIn(ExperimentalLayoutApi::class)
+/** Aligns equally sized global metrics while allowing their labels to wrap with larger fonts. */
 @Composable
 private fun TaskSummary(statistics: TaskStatistics?) {
-    FlowRow(
-        modifier = Modifier.fillMaxWidth(),
+    Row(
+        modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
         horizontalArrangement = Arrangement.spacedBy(TaskPilotSpacing.Small),
-        verticalArrangement = Arrangement.spacedBy(TaskPilotSpacing.Small),
     ) {
-        TaskMetric(stringResource(R.string.tasks_total), statistics?.total)
-        TaskMetric(stringResource(R.string.tasks_active), statistics?.active)
-        TaskMetric(stringResource(R.string.tasks_completed), statistics?.completed)
+        TaskMetric(stringResource(R.string.tasks_total), statistics?.total, Modifier.weight(1f).fillMaxHeight())
+        TaskMetric(stringResource(R.string.tasks_active), statistics?.active, Modifier.weight(1f).fillMaxHeight())
+        TaskMetric(stringResource(R.string.tasks_completed), statistics?.completed, Modifier.weight(1f).fillMaxHeight())
     }
 }
 
 /** Keeps a count and its label together as a single accessibility announcement. */
 @Composable
-private fun TaskMetric(label: String, count: Int?) {
+private fun TaskMetric(label: String, count: Int?, modifier: Modifier = Modifier) {
     val value = count?.toString() ?: stringResource(R.string.tasks_unknown_count)
     val description = stringResource(R.string.tasks_metric_description, label, value)
     Surface(
-        modifier = Modifier.widthIn(min = 100.dp).semantics(mergeDescendants = true) {
+        modifier = modifier.semantics(mergeDescendants = true) {
             contentDescription = description
         },
         shape = MaterialTheme.shapes.medium,
     ) {
-        Column(Modifier.padding(TaskPilotSpacing.Large), verticalArrangement = Arrangement.spacedBy(TaskPilotSpacing.ExtraSmall)) {
+        Column(Modifier.padding(TaskPilotSpacing.Medium), verticalArrangement = Arrangement.spacedBy(TaskPilotSpacing.ExtraSmall)) {
             Text(value, style = MaterialTheme.typography.titleLarge)
             Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
@@ -270,7 +288,6 @@ private fun LoadingTasks(isRefreshing: Boolean) {
 }
 
 /** Presents server-confirmed task status with accessible completion, edit, and delete actions. */
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun TaskCard(task: Task, enabled: Boolean, busy: Boolean, onEdit: (Task) -> Unit, onToggle: (Task) -> Unit, onDelete: (Task) -> Unit) {
     Surface(
@@ -294,21 +311,21 @@ private fun TaskCard(task: Task, enabled: Boolean, busy: Boolean, onEdit: (Task)
                     maxLines = 3, overflow = TextOverflow.Ellipsis,
                 )
             }
-            Text(
-                stringResource(if (task.isCompleted) R.string.tasks_completed else R.string.tasks_active),
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (task.isCompleted) TaskPilotColors.Success else MaterialTheme.colorScheme.primary,
-            )
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(TaskPilotSpacing.Small)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 val toggleLabel = stringResource(if (task.isCompleted) R.string.task_reopen_label else R.string.task_complete_label, task.title)
                 Checkbox(checked = task.isCompleted, onCheckedChange = { onToggle(task) }, enabled = enabled,
                     modifier = Modifier.semantics { contentDescription = toggleLabel })
-                val editLabel = stringResource(R.string.task_edit_label, task.title)
-                OutlinedButton(onClick = { onEdit(task) }, enabled = enabled,
-                    modifier = Modifier.semantics { contentDescription = editLabel }) { Text(stringResource(R.string.task_edit)) }
-                val deleteLabel = stringResource(R.string.task_delete_label, task.title)
-                OutlinedButton(onClick = { onDelete(task) }, enabled = enabled,
-                    modifier = Modifier.semantics { contentDescription = deleteLabel }) { Text(stringResource(R.string.task_delete)) }
+                Text(
+                    stringResource(if (task.isCompleted) R.string.tasks_completed else R.string.tasks_active),
+                    modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium,
+                    color = if (task.isCompleted) TaskPilotColors.Success else MaterialTheme.colorScheme.primary,
+                )
+                IconButton(onClick = { onEdit(task) }, enabled = enabled) {
+                    Icon(painterResource(R.drawable.ic_edit), contentDescription = stringResource(R.string.task_edit_label, task.title))
+                }
+                IconButton(onClick = { onDelete(task) }, enabled = enabled) {
+                    Icon(painterResource(R.drawable.ic_delete), contentDescription = stringResource(R.string.task_delete_label, task.title))
+                }
             }
             if (busy) {
                 LinearProgressIndicator(Modifier.fillMaxWidth())

@@ -103,7 +103,7 @@ class TaskMutationScreenTest {
                     onCreate = { creates++ }, onEdit = { edits++ }, onToggle = { toggles++ }, onRequestDelete = { deletes++ })
             }
         }
-        compose.onNodeWithText("Create Task").performClick()
+        compose.onNodeWithContentDescription("Create Task").performClick()
         compose.onNode(hasScrollAction()).performScrollToNode(hasText(task.title))
         compose.onNodeWithContentDescription("Complete task: Review demo").performClick()
         compose.onNodeWithContentDescription("Edit task: Review demo").performClick()

@@ -39,7 +39,7 @@ class HomeScreenTest {
     fun displaysLoadingAndDisablesRefresh() {
         render(HomeUiState())
         compose.onNodeWithText("TaskPilot").assertIsDisplayed()
-        compose.onNodeWithText("Refresh").assertIsNotEnabled()
+        compose.onNodeWithContentDescription("Refresh").assertIsNotEnabled()
         scrollTo("Loading tasks…")
         compose.onNodeWithText("Loading tasks…").assertIsDisplayed()
     }
@@ -125,7 +125,7 @@ class HomeScreenTest {
                 }, {}, {})
             }
         }
-        compose.onNodeWithText("Refresh").performClick().assertIsNotEnabled()
+        compose.onNodeWithContentDescription("Refresh").performClick().assertIsNotEnabled()
         compose.runOnIdle { assertEquals(1, refreshes) }
         scrollTo("Refreshing tasks…")
         compose.onNodeWithText("Refreshing tasks…").assertIsDisplayed()
