@@ -11,7 +11,7 @@
     <string name="tasks_loading">Loading tasks…</string>
     <string name="tasks_refreshing">Refreshing tasks…</string>
     <string name="tasks_empty_title">No tasks yet</string>
-    <string name="tasks_empty_body">Tasks created in TaskPilot will appear here. Refresh to check for updates.</string>
+    <string name="tasks_empty_body">Create your first task to get started.</string>
     <string name="tasks_filter_empty_title">No matching tasks</string>
     <string name="tasks_no_active">There are no active tasks. Choose All to see the full list.</string>
     <string name="tasks_no_completed">There are no completed tasks. Choose All to see the full list.</string>
@@ -48,4 +48,24 @@
     <string name="connection_error">Connection failed</string>
     <string name="connection_saved">Selected server: %1$s</string>
     <string name="connection_saved_note">Save &amp; Connect retains this address even if the server is temporarily unavailable. Go back to the Task List to see tasks or retry loading.</string>
+    <string name="task_create">Create Task</string>
+    <string name="task_edit">Edit Task</string>
+    <string name="task_title">Title</string>
+    <string name="task_description">Description (optional)</string>
+    <string name="task_save">Save</string>
+    <string name="task_cancel">Cancel</string>
+    <string name="task_delete">Delete</string>
+    <string name="task_delete_heading">Delete task?</string>
+    <string name="task_delete_body">Delete “%1$s”? This cannot be undone.</string>
+    <string name="task_complete_label">Complete task: %1$s</string>
+    <string name="task_reopen_label">Reopen task: %1$s</string>
+    <string name="task_edit_label">Edit task: %1$s</string>
+    <string name="task_delete_label">Delete task: %1$s</string>
+    <string name="task_saving">Saving task…</string>
+    <string name="task_updating">Updating task…</string>
+    <string name="task_deleting">Deleting task…</string>
+    <string name="task_missing">This task no longer exists. Cancel and refresh the list.</string>
+    <string name="task_validation">Check the highlighted fields and try again.</string>
+    <string name="task_title_help">Required · up to 200 UTF-16 characters</string>
+    <string name="task_description_help">Up to 2,000 UTF-16 characters</string>
 </resources>

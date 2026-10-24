@@ -1,5 +1,10 @@
 package com.gurhangure.taskpilot.feature.home
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.TextButton
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -49,15 +54,44 @@ fun HomeScreen(
     onFilterSelected: (TaskFilter) -> Unit,
     modifier: Modifier = Modifier,
     onOpenSettings: () -> Unit = {},
+    onCreate: () -> Unit = {},
+    onEdit: (Task) -> Unit = {},
+    onToggle: (Task) -> Unit = {},
+    onRequestDelete: (Task) -> Unit = {},
+    onConfirmDelete: () -> Unit = {},
+    onCancelDelete: () -> Unit = {},
+    onTitleChanged: (String) -> Unit = {},
+    onDescriptionChanged: (String) -> Unit = {},
+    onSave: () -> Unit = {},
+    onCancelEditor: () -> Unit = {},
 ) {
-    Scaffold(modifier = modifier.fillMaxSize()) { insets ->
+    BackHandler(enabled = state.editor != null || state.deleteTask != null) {
+        if (state.deleteTask != null) onCancelDelete() else onCancelEditor()
+    }
+    state.deleteTask?.let { task ->
+        DeleteTaskDialog(task, state.isMutating, state.mutationError, onConfirmDelete, onCancelDelete)
+    }
+    state.editor?.let { draft ->
+        TaskEditorScreen(draft, state.isMutating, onTitleChanged, onDescriptionChanged, onSave, onCancelEditor,
+            onDelete = { draft.original?.let(onRequestDelete) })
+        return
+    }
+    Scaffold(
+        modifier = modifier.fillMaxSize(),
+        floatingActionButton = {
+            if (state.endpointAvailable && !state.isMutating) {
+                FloatingActionButton(onClick = onCreate) { Text(stringResource(R.string.task_create), Modifier.padding(TaskPilotSpacing.Large)) }
+            }
+        },
+    ) { insets ->
         Box(Modifier.fillMaxSize().padding(insets), contentAlignment = Alignment.TopCenter) {
             LazyColumn(
                 modifier = Modifier.widthIn(max = 640.dp).fillMaxSize(),
-                contentPadding = PaddingValues(TaskPilotSpacing.ExtraLarge),
+                contentPadding = PaddingValues(start = TaskPilotSpacing.ExtraLarge, end = TaskPilotSpacing.ExtraLarge,
+                    top = TaskPilotSpacing.ExtraLarge, bottom = 112.dp),
                 verticalArrangement = Arrangement.spacedBy(TaskPilotSpacing.Large),
             ) {
-                item(key = "header") { TaskListHeader(state.isLoading, onRefresh, onOpenSettings) }
+                item(key = "header") { TaskListHeader(state.isLoading || state.isMutating, onRefresh, onOpenSettings) }
                 if (state.content != HomeContent.ConnectionRequired) {
                     item(key = "statistics") { TaskSummary(state.statistics) }
                     item(key = "filters") { TaskFilters(state.filter, onFilterSelected) }
@@ -67,6 +101,9 @@ fun HomeScreen(
                 }
                 state.refreshError?.let { error ->
                     item(key = "refresh_error") { TaskError(error, onRetry, state.isLoading, isRefresh = true) }
+                }
+                state.mutationError?.let { error ->
+                    item(key = "mutation_error") { MutationError(error) }
                 }
                 when (val content = state.content) {
                     HomeContent.Loading -> Unit
@@ -87,7 +124,10 @@ fun HomeScreen(
                                 )
                             }
                         }
-                        items(tasks, key = { it.id.toString() }) { task -> TaskCard(task) }
+                        items(tasks, key = { it.id.toString() }) { task ->
+                            TaskCard(task, state.endpointAvailable && !state.isMutating,
+                                state.isMutating && state.pendingTaskId == task.id, onEdit, onToggle, onRequestDelete)
+                        }
                     }
                 }
             }
@@ -192,9 +232,10 @@ private fun LoadingTasks(isRefreshing: Boolean) {
     }
 }
 
-/** Presents a read-only task card with text and color feedback for completed work. */
+/** Presents server-confirmed task status with accessible completion, edit, and delete actions. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun TaskCard(task: Task) {
+private fun TaskCard(task: Task, enabled: Boolean, busy: Boolean, onEdit: (Task) -> Unit, onToggle: (Task) -> Unit, onDelete: (Task) -> Unit) {
     Surface(
         modifier = Modifier.fillMaxWidth().semantics(mergeDescendants = true) {},
         shape = MaterialTheme.shapes.medium,
@@ -221,8 +262,44 @@ private fun TaskCard(task: Task) {
                 style = MaterialTheme.typography.bodyMedium,
                 color = if (task.isCompleted) TaskPilotColors.Success else MaterialTheme.colorScheme.primary,
             )
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(TaskPilotSpacing.Small)) {
+                val toggleLabel = stringResource(if (task.isCompleted) R.string.task_reopen_label else R.string.task_complete_label, task.title)
+                Checkbox(checked = task.isCompleted, onCheckedChange = { onToggle(task) }, enabled = enabled,
+                    modifier = Modifier.semantics { contentDescription = toggleLabel })
+                val editLabel = stringResource(R.string.task_edit_label, task.title)
+                OutlinedButton(onClick = { onEdit(task) }, enabled = enabled,
+                    modifier = Modifier.semantics { contentDescription = editLabel }) { Text(stringResource(R.string.task_edit)) }
+                val deleteLabel = stringResource(R.string.task_delete_label, task.title)
+                OutlinedButton(onClick = { onDelete(task) }, enabled = enabled,
+                    modifier = Modifier.semantics { contentDescription = deleteLabel }) { Text(stringResource(R.string.task_delete)) }
+            }
+            if (busy) {
+                LinearProgressIndicator(Modifier.fillMaxWidth())
+                Text(stringResource(R.string.task_updating))
+            }
         }
     }
+}
+
+/** Requires explicit confirmation and retains failure feedback without closing the dialog. */
+@Composable
+private fun DeleteTaskDialog(task: Task, busy: Boolean, error: ApiError?, onConfirm: () -> Unit, onCancel: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = { if (!busy) onCancel() },
+        title = { Text(stringResource(R.string.task_delete_heading)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(TaskPilotSpacing.Small)) {
+                Text(stringResource(R.string.task_delete_body, task.title))
+                if (busy) {
+                    LinearProgressIndicator(Modifier.fillMaxWidth())
+                    Text(stringResource(R.string.task_deleting))
+                }
+                error?.let { MutationError(it) }
+            }
+        },
+        confirmButton = { TextButton(onClick = onConfirm, enabled = !busy) { Text(stringResource(R.string.task_delete)) } },
+        dismissButton = { TextButton(onClick = onCancel, enabled = !busy) { Text(stringResource(R.string.task_cancel)) } },
+    )
 }
 
 /** Explains a successfully loaded empty collection or a filter with no matches. */

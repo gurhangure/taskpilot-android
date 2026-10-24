@@ -2,6 +2,7 @@ package com.gurhangure.taskpilot.feature.home
 
 import com.gurhangure.taskpilot.data.model.ApiError
 import com.gurhangure.taskpilot.data.model.Task
+import java.util.UUID
 
 /** Selects tasks locally without issuing another API request. */
 enum class TaskFilter { All, Active, Completed }
@@ -27,17 +28,31 @@ sealed interface HomeContent {
 /** Counts the entire retrieved collection, independently of the selected filter. */
 data class TaskStatistics(val total: Int, val active: Int, val completed: Int)
 
+/** Retains editable content and the original identity/completion snapshot until a confirmed save. */
+data class TaskDraft(
+    val original: Task? = null,
+    val title: String = original?.title.orEmpty(),
+    val description: String = original?.description.orEmpty(),
+    val error: ApiError? = null,
+)
+
 /** Supplies all screen content and derived values through immutable snapshots. */
 data class HomeUiState(
     val content: HomeContent = HomeContent.Loading,
     val filter: TaskFilter = TaskFilter.All,
     val isRefreshing: Boolean = false,
     val refreshError: ApiError? = null,
+    val endpointAvailable: Boolean = false,
+    val editor: TaskDraft? = null,
+    val deleteTask: Task? = null,
+    val isMutating: Boolean = false,
+    val pendingTaskId: UUID? = null,
+    val mutationError: ApiError? = null,
 ) {
     val isLoading: Boolean get() = content == HomeContent.Loading || isRefreshing
     val hasLoaded: Boolean get() = content is HomeContent.Success || content == HomeContent.Empty
 
-    private val tasks: List<Task> get() = (content as? HomeContent.Success)?.tasks.orEmpty()
+    val tasks: List<Task> get() = (content as? HomeContent.Success)?.tasks.orEmpty()
 
     val statistics: TaskStatistics?
         get() = if (hasLoaded) {

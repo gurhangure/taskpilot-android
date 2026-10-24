@@ -1,6 +1,6 @@
 # TaskPilot Android
 
-Native Kotlin/Jetpack Compose client for the [TaskPilot API](https://github.com/gurhangure/taskpilot-api). The dark Task List shows Total, Active, and Completed counts, read-only task cards, All / Active / Completed filters, Refresh, and Retry. Connection Settings stores a server URL on the device and applies changes immediately.
+Native Kotlin/Jetpack Compose client for the [TaskPilot API](https://github.com/gurhangure/taskpilot-api). The dark Task List shows Total, Active, and Completed counts, task cards with create/edit, complete/reopen, and confirmed deletion, All / Active / Completed filters, Refresh, and Retry. Connection Settings stores a server URL on the device and applies changes immediately.
 
 ## Quick Start
 
@@ -16,6 +16,17 @@ Native Kotlin/Jetpack Compose client for the [TaskPilot API](https://github.com/
 The server URL is restored on later launches. Use **Connection Settings** above the list to edit it. **Test Connection** verifies the draft without saving or selecting it. **Save & Connect** remembers a valid address even if its server is temporarily unavailable. Failed validation or disk writes preserve the previous saved choice. A failed connection never deletes settings.
 
 **APK users:** use the build-artifact instructions below when an APK for the desired commit is available. Download/extract `taskpilot-debug-apk`, transfer `app-debug.apk` to the device, allow installation from that specific installer if Android requests it, and open TaskPilot. The same in-app setup applies. A physical device needs a supported HTTPS server; the emulator suggestion does not refer to the computer from a phone.
+
+## Managing tasks
+
+- Select **Create Task** to open the shared task form. Enter a nonblank title (up to 200 UTF-16 code units) and an optional description (up to 2,000). Content is preserved without trimming; an empty description is sent as null. Choose **Save** or **Cancel**.
+- Choose **Edit Task** on a card to change its title or description. The task ID, creation time, and completion status are preserved.
+- Use a card’s completion checkbox to complete an active task or reopen a completed one. The checkbox changes only after the server confirms the update.
+- Choose **Delete** on a card or in its edit form, then confirm the dialog identifying that task. **Cancel** leaves it intact. There is no undo.
+
+Writes require a configured server. One mutation runs at a time; affected controls show progress and reject duplicates while filters and scrolling remain available. Errors retain form input or confirmed tasks for an explicit retry. Successful writes close the form/dialog, apply the confirmed response, and refresh the list without resetting the selected filter. A newly completed task disappears from the Active filter; a newly created task may be hidden by Completed. If the follow-up refresh fails, the confirmed change stays visible with a refresh warning and Retry action.
+
+Changing the server cancels pending work, closes old drafts/confirmation, and rejects late responses from the previous repository. Cancellation cannot guarantee that a write already received by a server was rolled back; check that server’s list before repeating an uncertain operation. No writes are queued offline.
 
 ## Backend setup
 
@@ -79,11 +90,11 @@ The custom debug policy accepts RFC1918 private IPv4 addresses or `127.0.0.1`, a
 
 ## Architecture and data flow
 
-The app follows MVVM + Repository + unidirectional data flow with constructor injection, coroutines, and immutable StateFlow snapshots. Two screens use saveable Activity-level navigation and native Back handling; no navigation framework is introduced.
+The app follows MVVM + Repository + unidirectional data flow with constructor injection, coroutines, and immutable StateFlow snapshots. Connection Settings uses saveable Activity-level navigation. The Home ViewModel owns the shared task form, delete confirmation, and mutation state, with native Back handling. No navigation framework is introduced.
 
 ```text
 MainActivity                         Screen navigation and lifecycle-aware state collection
-feature/home/                        Task list state, ViewModel, counts, filters, and components
+feature/home/                        Task list, shared task editor, confirmed mutations, counts, filters
 feature/connection/                  Editable URL, consent, save/test actions, verification feedback
 TaskPilotApplication                 One process-scoped HTTP factory and one DataStore instance
  data/settings/                      EndpointSettings contract and Preferences DataStore adapter
@@ -99,7 +110,7 @@ A save validates the URL, persists it, and then publishes the new endpoint. The 
 
 The task list retains global counts, local filters, stable LazyColumn task-ID keys, manual refresh, and typed recovery messages. Refresh preserves the last loaded collection and displays a warning on failure. This is transient screen state, not an offline cache. Activity recreation retains ViewModels and navigation selection.
 
-The API supports GET/POST `/api/tasks` and GET/PUT/DELETE `/api/tasks/{id}`; this UI only lists tasks. `RemoteTaskRepository` validates/marshals DTOs into UUID/Instant snapshots, preserves null/false write semantics, maps HTTP/transport/data errors, and rethrows cancellation. Connection verification requires HTTP 200 plus `status == "ok"` from `/api/health`, followed by a valid task array from `/api/tasks`. Health checks alone do not prove database availability; the task request verifies that boundary as well. Deployment path prefixes and trailing-slash normalization are preserved.
+The API supports GET/POST `/api/tasks` and GET/PUT/DELETE `/api/tasks/{id}`; the UI uses the existing create, replacement update, and delete repository methods, followed by list refresh. `RemoteTaskRepository` validates/marshals DTOs into UUID/Instant snapshots, preserves null/false write semantics, maps HTTP/transport/data errors, and rethrows cancellation. Connection verification requires HTTP 200 plus `status == "ok"` from `/api/health`, followed by a valid task array from `/api/tasks`. Health checks alone do not prove database availability; the task request verifies that boundary as well. Deployment path prefixes and trailing-slash normalization are preserved.
 
 Timeouts remain 10 seconds to connect, 15 seconds to read/write, and 30 seconds per HTTP call. A two-request verification can take up to two call deadlines. Automatic connection retries and redirects remain disabled. No body-logging interceptor or custom TLS trust is installed.
 
@@ -134,23 +145,26 @@ Use `gradlew.bat` on Windows. The installable debug-signed APK is generated at `
 
 [Android CI](https://github.com/gurhangure/taskpilot-android/actions/workflows/android.yml) runs JVM tests, Android Lint, compilation, debug APK upload, and separate API 35 emulator component and E2E suites. Gradle caching, timeouts, read-only repository permissions, and existing jobs remain intact. JVM tests include MockWebServer and temporary-file DataStore integration tests; they require neither a developer backend nor a real database. Automated tests are authored for CI and were not run locally.
 
-For the desired commit, open its Actions run and check **all jobs**. When available, download **taskpilot-debug-apk** under **Artifacts**; extract it to find `app-debug.apk`. GitHub sign-in may be required. APK retention is 14 days and reports are retained for 7 days. A build artifact by itself does not prove emulator success. The Settings increment is pending/unverified until its own CI completes.
+For the desired commit, open its Actions run and check **all jobs**. When available, download **taskpilot-debug-apk** under **Artifacts**; extract it to find `app-debug.apk`. GitHub sign-in may be required. APK retention is 14 days and reports are retained for 7 days. A build artifact by itself does not prove emulator success. This CRUD increment is pending/unverified until its own CI completes.
 
 A [verified earlier Task List build](https://github.com/gurhangure/taskpilot-android/actions/runs/40017734094) has a [debug APK artifact](https://github.com/gurhangure/taskpilot-android/actions/runs/40017734094/artifacts/12528549916). Its run reported success when inspected, but it predates Connection Settings and does **not** provide the onboarding described here. Do not use that older APK to evaluate this increment; use source or a subsequent verified artifact containing Settings. Artifacts expire; no permanent release/download link is published.
 
 | Level | Coverage |
 | --- | --- |
-| JVM unit | Fresh/restored settings, precedence, URL normalization/policy, save/failure, connection feedback, cancellation/stale results, live endpoint switching in the Home ViewModel, counts/filters/retry/refresh |
-| Integration | Real Retrofit/OkHttp/JSON against MockWebServer, health and task contracts, unrelated/malformed servers, HTTP errors, timeouts/cancellation, plus Preferences DataStore save/reopen on an isolated file |
-| Compose components | Task List loading/empty/populated/error states, first-launch Connect action, Settings URL/actions/consent/status, and large-font guidance |
-| Emulator E2E | Real first-launch navigation into Settings, invalid URL handling without a network call, return to Task List, and Activity recreation |
+| JVM unit | Fresh/restored settings, precedence, URL normalization/policy, save/failure, connection feedback, cancellation/stale results, live endpoint switching in the Home ViewModel, counts/filters/retry/refresh, CRUD validation/success/failure, duplicate prevention, confirmation, and stale mutation isolation |
+| Integration | Real Retrofit/OkHttp/JSON against MockWebServer, health and task contracts, unrelated/malformed servers, HTTP errors, timeouts/cancellation, mutation-to-refresh ViewModel/HTTP flow including a failed reload, plus Preferences DataStore save/reopen on an isolated file |
+| Compose components | Task List loading/empty/populated/error states, first-launch Connect action, Settings URL/actions/consent/status, accessible CRUD controls, form validation/progress, delete confirmation/errors, and large-font guidance |
+| Emulator E2E | Real first-launch navigation into Settings, invalid URL handling without a network call, return to Task List, and Activity recreation; full app composition with real ViewModels and a deterministic repository for create/edit/complete/reopen/delete journeys |
 
-Live API integration, physical devices, API 26/36 runtime coverage, and task mutation E2E journeys remain unverified or future work. Existing repository and task-list tests remain enabled.
+Live API integration, physical devices, and API 26/36 runtime coverage remain unverified. The CRUD E2E journey injects a controlled repository into the same app composition; real HTTP contracts are covered separately by MockWebServer integration tests. Existing repository and task-list tests remain enabled.
 
 ## Troubleshooting
 
 | Symptom | Action |
 | --- | --- |
+| Save is rejected | Check the title/description field messages and limits; input is retained for correction |
+| A mutation fails or a task was removed elsewhere | Review the displayed error, cancel if needed, refresh, and retry against the current server; there is no automatic write retry |
+| A saved task is hidden | Check the selected Active/Completed filter; counts always use all loaded tasks |
 | Fresh install shows Connect to Server | Expected: choose the server inside the app; no build edits are needed |
 | Server unreachable / timeout | Start the API separately; check port, scheme, host binding, VPN, host sleep, and trusted-network reachability |
 | Phone cannot use the emulator URL | `10.0.2.2` maps to the host only inside an Android emulator; use supported HTTPS for the phone |
@@ -166,6 +180,6 @@ Live API integration, physical devices, API 26/36 runtime coverage, and task mut
 
 ## Current limitations
 
-No task creation/editing/deletion/completion UI, title search, authentication, offline cache, background sync, QR pairing, or light theme. The API has no authentication or user isolation. Connection verification checks documented contracts and cannot authenticate an adversarial server. URL configuration is persistent, but task data and draft feedback are not stored across process death. No public release, production server, or store signing is configured.
+No title search, authentication, offline cache, background sync, QR pairing, undo, or light theme. Concurrent clients use the backend’s existing replacement-update contract without version/conflict detection. The API has no authentication or user isolation. Connection verification checks documented contracts and cannot authenticate an adversarial server. URL configuration is persistent, but task data and draft feedback are not stored across process death. No public release, production server, or store signing is configured.
 
 `AGENTS.md`, numbered `prompts/`, SDK paths, IDE state, credentials, and signing files remain ignored/untracked. The public design specification remains tracked.

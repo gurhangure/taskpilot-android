@@ -35,9 +35,9 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-/** Coordinates two screens with saveable navigation and native Back handling. */
+/** Coordinates the task list/editor and connection settings with saveable navigation and native Back handling. */
 @Composable
-private fun TaskPilotContent(connections: ConnectionRepository) {
+internal fun TaskPilotContent(connections: ConnectionRepository) {
     var settingsOpen by rememberSaveable { mutableStateOf(false) }
     val home: HomeViewModel = viewModel(factory = HomeViewModel.factory(connections))
     val homeState by home.uiState.collectAsStateWithLifecycle()
@@ -59,6 +59,11 @@ private fun TaskPilotContent(connections: ConnectionRepository) {
         HomeScreen(
             state = homeState, onRefresh = home::refresh, onRetry = home::retry,
             onFilterSelected = home::selectFilter, onOpenSettings = { settingsOpen = true },
+            onCreate = home::createTask, onEdit = home::editTask, onToggle = home::toggleTask,
+            onRequestDelete = home::requestDelete, onConfirmDelete = home::confirmDelete,
+            onCancelDelete = home::cancelDelete, onTitleChanged = home::editTitle,
+            onDescriptionChanged = home::editDescription, onSave = home::saveTask,
+            onCancelEditor = home::cancelEditor,
         )
     }
 }
