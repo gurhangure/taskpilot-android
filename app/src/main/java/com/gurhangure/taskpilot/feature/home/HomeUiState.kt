@@ -48,6 +48,7 @@ data class HomeUiState(
     val isMutating: Boolean = false,
     val pendingTaskId: UUID? = null,
     val mutationError: ApiError? = null,
+    val searchQuery: String = "",
 ) {
     val isLoading: Boolean get() = content == HomeContent.Loading || isRefreshing
     val hasLoaded: Boolean get() = content is HomeContent.Success || content == HomeContent.Empty
@@ -60,10 +61,17 @@ data class HomeUiState(
             TaskStatistics(tasks.size, tasks.size - completed, completed)
         } else null
 
-    val visibleTasks: List<Task>
-        get() = when (filter) {
-            TaskFilter.All -> tasks
-            TaskFilter.Active -> tasks.filterNot { it.isCompleted }
-            TaskFilter.Completed -> tasks.filter { it.isCompleted }
+    // Compute once per immutable state snapshot rather than on every Compose read.
+    val visibleTasks: List<Task> = run {
+        val query = searchQuery.trim()
+        tasks.filter { task ->
+            val matchesStatus = when (filter) {
+                TaskFilter.All -> true
+                TaskFilter.Active -> !task.isCompleted
+                TaskFilter.Completed -> task.isCompleted
+            }
+            matchesStatus && (query.isEmpty() || task.title.contains(query, ignoreCase = true) ||
+                task.description?.contains(query, ignoreCase = true) == true)
         }
+    }
 }

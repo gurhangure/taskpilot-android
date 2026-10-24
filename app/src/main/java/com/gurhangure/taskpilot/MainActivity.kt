@@ -64,6 +64,7 @@ internal fun TaskPilotContent(connections: ConnectionRepository) {
             onCancelDelete = home::cancelDelete, onTitleChanged = home::editTitle,
             onDescriptionChanged = home::editDescription, onSave = home::saveTask,
             onCancelEditor = home::cancelEditor,
+            onSearchChanged = home::updateSearchQuery,
         )
     }
 }

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
@@ -26,6 +27,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
@@ -51,6 +53,7 @@ fun ConnectionScreen(
     onTest: () -> Unit,
     onBack: () -> Unit,
 ) {
+    val focus = LocalFocusManager.current
     Scaffold { insets ->
         Box(Modifier.fillMaxSize().padding(insets).imePadding(), contentAlignment = Alignment.TopCenter) {
             Column(
@@ -73,6 +76,7 @@ fun ConnectionScreen(
                     label = { Text(stringResource(R.string.connection_url)) },
                     singleLine = true, enabled = !state.restoring,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { focus.clearFocus() }),
                     isError = state.feedback is ConnectionFeedback.Error,
                     modifier = Modifier.fillMaxWidth(),
                 )

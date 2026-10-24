@@ -35,7 +35,7 @@
     <string name="connection_back">Back to Task List</string>
     <string name="connection_url">Server URL</string>
     <string name="connection_guidance">Use HTTPS for a physical device. The server must be running separately. Test Connection checks this address without saving it.</string>
-    <string name="connection_emulator_guidance">Android emulator only: http://10.0.2.2:5087/ reaches a backend running on your computer. It is not a physical-device address.</string>
+    <string name="connection_emulator_guidance">Running TaskPilot API locally?\n\nIf you are using the Android Emulator and running the API on port 5087, try http://10.0.2.2:5087/.\n\nOtherwise, enter your own server URL.</string>
     <string name="connection_emulator_action">Use emulator address</string>
     <string name="connection_http_warning">HTTP is unencrypted and the demo API has no authentication. Use disposable data on a trusted network. Standard builds permit HTTP only to the emulator host 10.0.2.2; other hosts require HTTPS. An explicitly configured debug build may permit one private LAN host.</string>
     <string name="connection_http_acknowledgement">I understand the local HTTP risk</string>
@@ -68,4 +68,9 @@
     <string name="task_validation">Check the highlighted fields and try again.</string>
     <string name="task_title_help">Required · up to 200 UTF-16 characters</string>
     <string name="task_description_help">Up to 2,000 UTF-16 characters</string>
+    <string name="tasks_search">Search tasks</string>
+    <string name="tasks_search_hint">Search titles and descriptions</string>
+    <string name="tasks_clear">Clear</string>
+    <string name="tasks_clear_search">Clear search</string>
+    <string name="tasks_search_no_matches">Try another search or change the status filter.</string>
 </resources>

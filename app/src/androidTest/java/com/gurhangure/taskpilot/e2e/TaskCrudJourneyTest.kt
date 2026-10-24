@@ -43,6 +43,9 @@ class TaskCrudJourneyTest {
         compose.onNodeWithText("Description (optional)").performImeAction()
         compose.onNodeWithText("Save").performScrollTo().performClick()
         compose.onNodeWithContentDescription("Total: 1").assertIsDisplayed()
+        scrollTo("Search tasks")
+        compose.onNodeWithText("Search tasks").performTextReplacement("NOTES")
+        compose.onNodeWithText("Search tasks").performImeAction()
         scrollTo("Prepare demo")
         compose.onNodeWithContentDescription("Edit task: Prepare demo").performClick()
         compose.onNodeWithText("Initial notes").assertIsDisplayed()
@@ -50,6 +53,8 @@ class TaskCrudJourneyTest {
         compose.onNodeWithText("Description (optional)").performTextReplacement("Final notes")
         compose.onNodeWithText("Description (optional)").performImeAction()
         compose.onNodeWithText("Save").performScrollTo().performClick()
+        scrollTo("Search tasks")
+        compose.onNodeWithText("NOTES").assertIsDisplayed()
         scrollTo("Polish demo")
         compose.onNodeWithContentDescription("Complete task: Polish demo").performClick()
         scrollTo("Total")
@@ -68,6 +73,9 @@ class TaskCrudJourneyTest {
         compose.onNodeWithText("No tasks yet").assertIsDisplayed()
         scrollTo("Total")
         compose.onNodeWithContentDescription("Total: 0").assertIsDisplayed()
+        scrollTo("Search tasks")
+        compose.onNodeWithText("NOTES").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Clear search").performScrollTo().performClick()
         compose.runOnIdle { assertEquals(1, repository.deleteCalls); assertEquals(3, repository.updateCalls) }
     }
 

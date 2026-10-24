@@ -131,6 +131,12 @@ class HomeViewModel(private val connections: ConnectionRepository) : ViewModel()
         mutableUiState.update { it.copy(filter = filter) }
     }
 
+    /** Searches loaded titles and descriptions immediately without changing the filter or fetching data. */
+    fun updateSearchQuery(query: String) {
+        if (mutableUiState.value.searchQuery == query) return
+        mutableUiState.update { it.copy(searchQuery = query) }
+    }
+
     /** Opens a blank draft only for a selected server and outside another mutation. */
     fun createTask() {
         if (!canMutate()) return

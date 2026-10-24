@@ -147,6 +147,19 @@ class TaskMutationScreenTest {
         compose.onNodeWithText("Deleting task…").assertIsDisplayed()
     }
 
+    /** Retry reflects the same mutation guard as Refresh rather than appearing actionable during a write. */
+    @Test
+    fun retryIsDisabledWhileAMutationIsPending() {
+        compose.setContent {
+            TaskPilotTheme {
+                HomeScreen(HomeUiState(HomeContent.Success(listOf(task)), isMutating = true,
+                    pendingTaskId = task.id, refreshError = ApiError.Timeout), {}, {}, {})
+            }
+        }
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText("Retry"))
+        compose.onNodeWithText("Retry").assertIsNotEnabled()
+    }
+
     /** A failed deletion remains actionable and clearly distinguishes a missing task from bad configuration. */
     @Test
     fun deleteFailureKeepsConfirmationAndRecoveryMessage() {

@@ -51,6 +51,7 @@ class TaskMutationIntegrationTest {
                 withTimeout(10_000) {
                     home.uiState.first { it.hasLoaded }
                     home.selectFilter(TaskFilter.Active)
+                    home.updateSearchQuery("HTTP")
                     val id = UUID(0, 1)
                     val task = """{"id":"$id","title":"HTTP task","description":null,"isCompleted":false,"createdAtUtc":"2026-10-24T12:00:00Z"}"""
                     server.enqueue(json(201, task))
@@ -68,6 +69,7 @@ class TaskMutationIntegrationTest {
                     home.toggleTask(failedReload.tasks.single())
                     val updated = home.uiState.first { !it.isMutating && !it.isRefreshing && it.tasks.singleOrNull()?.isCompleted == true }
                     assertEquals(TaskFilter.Active, updated.filter)
+                    assertEquals("HTTP", updated.searchQuery)
                     assertEquals(emptyList<Any>(), updated.visibleTasks)
                     assertEquals(TaskStatistics(1, 0, 1), updated.statistics)
                     server.enqueue(MockResponse().setResponseCode(204))
@@ -77,6 +79,7 @@ class TaskMutationIntegrationTest {
                     val deleted = home.uiState.first { it.content == HomeContent.Empty && !it.isMutating && !it.isRefreshing }
                     assertEquals(TaskStatistics(0, 0, 0), deleted.statistics)
                     assertEquals(TaskFilter.Active, deleted.filter)
+                    assertEquals("HTTP", deleted.searchQuery)
                     val requests = List(7) { requireNotNull(server.takeRequest(2, TimeUnit.SECONDS)) }
                     assertEquals(listOf("GET", "POST", "GET", "PUT", "GET", "DELETE", "GET"), requests.map { it.method })
                     assertEquals(listOf("/api/tasks", "/api/tasks", "/api/tasks", "/api/tasks/$id", "/api/tasks", "/api/tasks/$id", "/api/tasks"), requests.map { it.path })

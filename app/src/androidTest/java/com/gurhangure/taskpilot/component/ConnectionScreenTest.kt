@@ -96,6 +96,21 @@ class ConnectionScreenTest {
         }
     }
 
+    /** The emulator suggestion is conditional guidance and does not select a URL on first display. */
+    @Test
+    fun emulatorSuggestionRequiresAnExplicitUserAction() {
+        var suggestions = 0
+        val state = ConnectionUiState(restoring = false)
+        compose.setContent {
+            TaskPilotTheme { ConnectionScreen(state, {}, {}, { suggestions++ }, {}, {}, {}) }
+        }
+        compose.runOnIdle { assertEquals(0, suggestions); assertEquals("", state.url) }
+        compose.onNodeWithText("Running TaskPilot API locally?\n\nIf you are using the Android Emulator and running the API on port 5087, try http://10.0.2.2:5087/.\n\nOtherwise, enter your own server URL.")
+            .performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Use emulator address").performScrollTo().performClick()
+        compose.runOnIdle { assertEquals(1, suggestions) }
+    }
+
     /** Supplies a fixed snapshot for presentation-only checks. */
     private fun render(state: ConnectionUiState) {
         compose.setContent { TaskPilotTheme { ConnectionScreen(state, {}, {}, {}, {}, {}, {}) } }

@@ -320,6 +320,53 @@ class TaskMutationTest {
         assertEquals(0, repository.createCalls + repository.updateCalls + repository.deleteCalls)
     }
 
+    /** Local search follows every confirmed write while retaining the query and selected status. */
+    @Test
+    fun searchResultsFollowCreateEditCompleteReopenAndDelete() = runTest {
+        val home = model()
+        runCurrent()
+        home.updateSearchQuery("needle")
+        home.selectFilter(TaskFilter.Active)
+        home.createTask()
+        home.editTitle("Unrelated title")
+        home.editDescription("Needle in the notes")
+        home.saveTask()
+        runCurrent()
+        val created = home.uiState.value.visibleTasks.single()
+        assertEquals(TaskStatistics(1, 1, 0), home.uiState.value.statistics)
+        home.editTask(created)
+        home.editTitle("Needle title")
+        home.editDescription("")
+        home.saveTask()
+        runCurrent()
+        val edited = home.uiState.value.visibleTasks.single()
+        assertEquals("Needle title", edited.title)
+        assertNull(edited.description)
+        home.toggleTask(edited)
+        runCurrent()
+        assertTrue(home.uiState.value.visibleTasks.isEmpty())
+        home.selectFilter(TaskFilter.Completed)
+        val completed = home.uiState.value.visibleTasks.single()
+        home.toggleTask(completed)
+        runCurrent()
+        assertTrue(home.uiState.value.visibleTasks.isEmpty())
+        home.selectFilter(TaskFilter.Active)
+        home.editTask(home.uiState.value.visibleTasks.single())
+        home.editTitle("No longer matches")
+        home.saveTask()
+        runCurrent()
+        assertTrue(home.uiState.value.visibleTasks.isEmpty())
+        assertEquals("needle", home.uiState.value.searchQuery)
+        home.updateSearchQuery("No longer")
+        home.requestDelete(home.uiState.value.visibleTasks.single())
+        home.confirmDelete()
+        runCurrent()
+        assertEquals("No longer", home.uiState.value.searchQuery)
+        assertEquals(TaskFilter.Active, home.uiState.value.filter)
+        assertEquals(HomeContent.Empty, home.uiState.value.content)
+        assertEquals(TaskStatistics(0, 0, 0), home.uiState.value.statistics)
+    }
+
     /** Retains the injected Home model in a cancellable lifecycle store. */
     private fun model(source: InMemoryConnectionRepository = connections): HomeViewModel =
         ViewModelProvider(store, HomeViewModel.factory(source))[HomeViewModel::class.java]

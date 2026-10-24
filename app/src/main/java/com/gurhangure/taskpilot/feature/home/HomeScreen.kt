@@ -14,26 +14,34 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -64,6 +72,7 @@ fun HomeScreen(
     onDescriptionChanged: (String) -> Unit = {},
     onSave: () -> Unit = {},
     onCancelEditor: () -> Unit = {},
+    onSearchChanged: (String) -> Unit = {},
 ) {
     BackHandler(enabled = state.editor != null || state.deleteTask != null) {
         if (state.deleteTask != null) onCancelDelete() else onCancelEditor()
@@ -77,7 +86,7 @@ fun HomeScreen(
         return
     }
     Scaffold(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize().imePadding(),
         floatingActionButton = {
             if (state.endpointAvailable && !state.isMutating) {
                 FloatingActionButton(onClick = onCreate) { Text(stringResource(R.string.task_create), Modifier.padding(TaskPilotSpacing.Large)) }
@@ -93,6 +102,7 @@ fun HomeScreen(
             ) {
                 item(key = "header") { TaskListHeader(state.isLoading || state.isMutating, onRefresh, onOpenSettings) }
                 if (state.content != HomeContent.ConnectionRequired) {
+                    item(key = "search") { TaskSearchField(state.searchQuery, onSearchChanged) }
                     item(key = "statistics") { TaskSummary(state.statistics) }
                     item(key = "filters") { TaskFilters(state.filter, onFilterSelected) }
                 }
@@ -100,7 +110,7 @@ fun HomeScreen(
                     item(key = "progress") { LoadingTasks(state.isRefreshing) }
                 }
                 state.refreshError?.let { error ->
-                    item(key = "refresh_error") { TaskError(error, onRetry, state.isLoading, isRefresh = true) }
+                    item(key = "refresh_error") { TaskError(error, onRetry, state.isLoading || state.isMutating, isRefresh = true) }
                 }
                 state.mutationError?.let { error ->
                     item(key = "mutation_error") { MutationError(error) }
@@ -113,14 +123,18 @@ fun HomeScreen(
                     HomeContent.Empty -> item(key = "empty") {
                         TaskMessage(stringResource(R.string.tasks_empty_title), stringResource(R.string.tasks_empty_body))
                     }
-                    is HomeContent.Error -> item(key = "error") { TaskError(content.error, onRetry, state.isLoading) }
+                    is HomeContent.Error -> item(key = "error") { TaskError(content.error, onRetry, state.isLoading || state.isMutating) }
                     is HomeContent.Success -> {
                         val tasks = state.visibleTasks
                         if (tasks.isEmpty()) {
                             item(key = "filter_empty") {
                                 TaskMessage(
                                     stringResource(R.string.tasks_filter_empty_title),
-                                    stringResource(if (state.filter == TaskFilter.Active) R.string.tasks_no_active else R.string.tasks_no_completed),
+                                    stringResource(when {
+                                        state.searchQuery.isNotBlank() || state.filter == TaskFilter.All -> R.string.tasks_search_no_matches
+                                        state.filter == TaskFilter.Active -> R.string.tasks_no_active
+                                        else -> R.string.tasks_no_completed
+                                    }),
                                 )
                             }
                         }
@@ -133,6 +147,29 @@ fun HomeScreen(
             }
         }
     }
+}
+
+/** Provides labelled local search and clearing; the IME action dismisses the keyboard without fetching. */
+@Composable
+private fun TaskSearchField(query: String, onChanged: (String) -> Unit) {
+    val focus = LocalFocusManager.current
+    OutlinedTextField(
+        value = query, onValueChange = onChanged,
+        label = { Text(stringResource(R.string.tasks_search)) },
+        placeholder = { Text(stringResource(R.string.tasks_search_hint)) },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+        keyboardActions = KeyboardActions(onSearch = { focus.clearFocus() }),
+        trailingIcon = {
+            if (query.isNotEmpty()) {
+                val clearLabel = stringResource(R.string.tasks_clear_search)
+                TextButton(onClick = { onChanged("") }, modifier = Modifier.semantics { contentDescription = clearLabel }) {
+                    Text(stringResource(R.string.tasks_clear))
+                }
+            }
+        },
+        modifier = Modifier.fillMaxWidth(),
+    )
 }
 
 /** Shows product identity and a manual refresh action that disables during an active request. */
@@ -288,7 +325,10 @@ private fun DeleteTaskDialog(task: Task, busy: Boolean, error: ApiError?, onConf
         onDismissRequest = { if (!busy) onCancel() },
         title = { Text(stringResource(R.string.task_delete_heading)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(TaskPilotSpacing.Small)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(TaskPilotSpacing.Small),
+            ) {
                 Text(stringResource(R.string.task_delete_body, task.title))
                 if (busy) {
                     LinearProgressIndicator(Modifier.fillMaxWidth())

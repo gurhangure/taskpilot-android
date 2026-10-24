@@ -26,6 +26,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -86,7 +88,10 @@ fun TaskEditorScreen(
                     LinearProgressIndicator(Modifier.fillMaxWidth())
                     Text(stringResource(R.string.task_saving))
                 }
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(TaskPilotSpacing.Small)) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(TaskPilotSpacing.Small),
+                    verticalArrangement = Arrangement.spacedBy(TaskPilotSpacing.Small),
+                ) {
                     Button(onClick = { focus.clearFocus(); onSave() }, enabled = !busy) { Text(stringResource(R.string.task_save)) }
                     OutlinedButton(onClick = onCancel, enabled = !busy) { Text(stringResource(R.string.task_cancel)) }
                     if (draft.original != null) {
@@ -112,5 +117,6 @@ internal fun MutationError(error: ApiError) {
             else -> apiErrorMessage(error)
         },
         color = MaterialTheme.colorScheme.error,
+        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
     )
 }
